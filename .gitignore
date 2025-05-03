@@ -1,0 +1,55 @@
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+**/env/
+**/venv/
+**/ENV/
+*.egg-info/
+**/dist/
+**/build/
+*.egg
+
+# Django stuff
+*.log
+*.pot
+*.pyc
+db.sqlite3
+# Uncomment this if you use Django migrations but want to exclude migration files
+# **/migrations/
+# Include specific migration files
+# !**/migrations/0001_initial.py
+
+# Media / uploaded files
+**/media/
+**/mediafiles/
+
+# Static files
+**/staticfiles/
+**/static/
+
+# settings
+**/settings_local.py
+.env
+.env.*
+.env_file/*
+.secrets/**/*
+
+# IDEs
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# System Files
+*.swp
+*.swo

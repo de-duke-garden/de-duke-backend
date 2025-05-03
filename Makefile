@@ -1,0 +1,74 @@
+# Development Targets
+start-dev:
+	@echo "Starting development containers"
+	docker compose -f compose.dev.yaml up -d
+
+stop-dev:
+	@echo "Stopping development containers"
+	docker compose -f compose.dev.yaml down
+
+restart-dev:
+	@echo "Restarting development containers"
+	docker compose -f compose.dev.yaml down && docker compose -f compose.dev.yaml up -d
+
+build-dev:
+	@echo "Building development containers"
+	docker compose -f compose.dev.yaml up --build -d
+
+logs-dev:
+	@echo "Viewing development logs"
+	docker compose -f compose.dev.yaml logs -f
+
+exec-dev:
+	@echo "Executing shell in development service (replace <service> with your service name)"
+	docker compose -f compose.dev.yaml exec <service> sh
+
+ps-dev:
+	@echo "Listing running development containers"
+	docker compose -f compose.dev.yaml ps
+
+prune-dev:
+	@echo "Cleaning up unused development containers, networks, images, and volumes"
+	docker system prune -f && docker volume prune -f
+
+collectstatic-dev:
+	@echo "Collecting static files on service `backend`"
+	docker compose -f compose.dev.yaml exec backend python manage.py collectstatic --noinput
+
+
+# Production Targets
+start:
+	@echo "Starting production containers"
+	docker compose -f compose.yaml up -d
+
+stop:
+	@echo "Stopping production containers"
+	docker compose -f compose.yaml down
+
+restart:
+	@echo "Restarting production containers"
+	docker compose -f compose.yaml down && docker compose -f compose.yaml up -d
+
+build:
+	@echo "Building production containers"
+	docker compose -f compose.yaml up --build -d
+
+logs:
+	@echo "Viewing production logs"
+	docker compose -f compose.yaml logs -f
+
+exec:
+	@echo "Executing shell in production service (replace <service> with your service name)"
+	docker compose -f compose.yaml exec <service> sh
+
+ps:
+	@echo "Listing running production containers"
+	docker compose -f compose.yaml ps
+
+prune:
+	@echo "Cleaning up unused production containers, networks, images, and volumes"
+	docker system prune -f && docker volume prune -f
+
+collectstatic:
+	@echo "Collecting static files on service `backend`"
+	docker compose -f compose.yaml exec backend python manage.py collectstatic --noinput

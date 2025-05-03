@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: backend-stagging
+    command: >
+      sh -c "python manage.py migrate
+      && daphne main.asgi:application -b 0.0.0.0 -p 8000"
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env_file/stagging.env
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres
+    container_name: db-stagging
+    restart: always
+    user: postgres
+    secrets:
+      - db-password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=postgres #TODO: make sure to use your prefered db name
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+    expose:
+      - 5432
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  db-data:
+secrets:
+  db-password:
+    file: .secrets/db/password.txt
+
