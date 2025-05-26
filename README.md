@@ -1,7 +1,7 @@
-# {{project}} Documentation
+# De-Duke Documentation
 
 ## Overview
-This is the overview for the {{project}} application, built using Django, DRF and more and containerized with Docker.
+This is the overview for the De-Duke application, built using Django, DRF and more and containerized with Docker.
 
 ## Prerequisites
 - Docker
@@ -10,7 +10,7 @@ This is the overview for the {{project}} application, built using Django, DRF an
 
 ## Project Structure
 ```
-{{project}}_backend/
+De-Duke/
 ├── backend/
 ├── .env_file/
 |   └── dev.env
