@@ -39,5 +39,5 @@ volumes:
   db-data:
 secrets:
   db-password:
-    file: .secrets/db/password.txt
+    file: .secrets/db/password-stagging.txt
 

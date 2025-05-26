@@ -15,3 +15,8 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT'),
     }
 }
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "https://your-production-frontend.com",
+]

@@ -1,0 +1,35 @@
+{% extends "admin/change_form.html" %}
+
+{% block content %}
+{{ block.super }}
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // This is the plain JavaScript code that will run when the document is ready
+        const propertyTypeField = document.getElementById("id_property_type");
+        const homePropertyGroup = document.getElementById("homeproperty-group");
+        const apartmentPropertyGroup = document.getElementById("apartmentproperty-group");
+
+        function _changeHandler() {
+            const selectedType = propertyTypeField.value;
+
+            if (selectedType === "home") {
+                homePropertyGroup.style.display = "block";
+            } else {
+                homePropertyGroup.style.display = "none";
+            }
+            if (selectedType === "apartment") {
+                apartmentPropertyGroup.style.display = "block";
+            } else {
+                apartmentPropertyGroup.style.display = "none";
+            }
+        }
+
+        // Initial check to set the visibility based on the current selection
+        _changeHandler();
+
+
+        propertyTypeField.addEventListener("change", _changeHandler);
+    });
+</script>
+{% endblock content %}

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, PhoneNumber, GoogleAccount, StakeholderAccount, GovIssuedIdentity
+from .models import User, PhoneNumber, StakeholderAccount, GovIssuedIdentity
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -36,7 +36,7 @@ class UserMeSerializer(serializers.ModelSerializer):
     phone_number = PhoneNumberSerializer(required=False, read_only=True)
     class Meta:
         model = User
-        exclude = ['password', 'is_superuser', 'is_staff']
+        exclude = ['password', 'is_superuser', 'is_staff', 'firebase_uid']
         read_only_fields = ['id', 'date_joined', 'last_login', 'is_active', 'is_staff',
                             'is_superuser', 'email_verified', 'email', 'groups', 'user_permissions']
 

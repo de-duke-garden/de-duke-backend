@@ -2,7 +2,7 @@ import nested_admin
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import OTPRequest, User, PhoneNumber, GoogleAccount, StakeholderAccount, GovIssuedIdentity
+from .models import OTPRequest, User, PhoneNumber, StakeholderAccount, GovIssuedIdentity
 
 
 admin.site.site_header = "De-Duke Garden Care"
@@ -12,12 +12,6 @@ admin.site.index_title = "Welcome to De-Duke Admin Dashboard"
 
 class PhoneNumberInline(nested_admin.NestedTabularInline):
     model = PhoneNumber
-    extra = 0
-    max_num = 1
-
-
-class GoogleAccountInline(nested_admin.NestedTabularInline):
-    model = GoogleAccount
     extra = 0
     max_num = 1
 
@@ -67,7 +61,7 @@ class UserAdmin(BaseUserAdmin, nested_admin.NestedModelAdmin):
     list_display = ("email", "first_name", "last_name", "is_staff")
     search_fields = ("first_name", "last_name", "email")
     ordering = ("email",)
-    inlines = [PhoneNumberInline, GoogleAccountInline, StakeholderAccountInline]
+    inlines = [PhoneNumberInline, StakeholderAccountInline]
 
 
 @admin.register(OTPRequest)

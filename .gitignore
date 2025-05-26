@@ -40,6 +40,7 @@ db.sqlite3
 .env.*
 .env_file/*
 .secrets/**/*
+**/.firebase/*
 
 # IDEs
 .vscode/

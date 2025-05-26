@@ -38,12 +38,15 @@ INSTALLED_APPS = [
     # Local apps
     'accounts',
     'api_auth',
+    'properties',
+    # 'ads',
     # Third-party packages
     'corsheaders',
     'daphne',
     'drf_yasg',
     'rest_framework',
     'nested_admin',
+    'mapwidgets',
     # Platform packages
     'django.contrib.admin',
     'django.contrib.auth',
@@ -51,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
 ]
 
 MIDDLEWARE = [
@@ -93,8 +97,12 @@ ASGI_APPLICATION = 'main.asgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT'),
     }
 }
 
@@ -129,7 +137,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lagos'
 
 USE_I18N = True
 
@@ -151,11 +159,17 @@ MEDIA_ROOT = BASE_DIR / "mediafiles"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+
 # Rest Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'api_auth.authentication.FirebaseAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication'
+        'rest_framework.authentication.SessionAuthentication',
     ),
 }
 
@@ -234,7 +248,7 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['console', 'file'],  # Add the file handler here
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'DEBUG'),
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
         },
     },
 }
@@ -242,3 +256,44 @@ LOGGING = {
 # Frontend settings
 FRONTEND_PASSWORD_RESET_URL = os.getenv("FRONTEND_PASSWORD_RESET_URL", "http://localhost:3000/reset-password")
 FRONTEND_VERIFY_EMAIL_URL = os.getenv("FRONTEND_VERIFY_EMAIL_URL", "http://localhost:3000/verify-email")
+
+# Firebase settings
+FIREBASE_CRED_DIR = BASE_DIR / '.firebase'
+if not FIREBASE_CRED_DIR.exists():
+    FIREBASE_CRED_DIR.mkdir()
+
+FIREBASE_CRED_FILE = os.getenv("FIREBASE_CRED_FILE")
+
+# GDAL settings
+GDAL_LIBRARY_PATH = "/usr/lib/libgdal.so"
+
+# Map widgets settings
+GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
+
+MAP_WIDGETS = {
+    "GoogleMap": {
+        "apiKey": GOOGLE_MAP_API_KEY,
+        "PointField": {
+            "interactive": {
+                "mapOptions": {
+                    "zoom": 15,  # set initial zoom
+                    "streetViewControl": False,
+                },
+                "GooglePlaceAutocompleteOptions": {
+                    "componentRestrictions": {"country": "uk"}
+                },
+            }
+        }
+    },
+    "Leaflet": {
+        "PointField": {
+            "interactive": {
+                "mapOptions": {
+                    "zoom": 12,
+                    "scrollWheelZoom": False
+                }
+            }
+        },
+        "markerFitZoom": 14,
+    }
+}

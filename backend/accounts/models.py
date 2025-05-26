@@ -48,6 +48,8 @@ class User(AbstractUser):
     username = None
     email = models.EmailField(_("email address"), unique=True)
     email_verified = models.BooleanField(_("email verified"), default=False, help_text=_("Designates whether the email has been verified."))
+    firebase_uid = models.CharField(max_length=255, unique=True, null=True, blank=True)
+
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
@@ -59,10 +61,7 @@ class User(AbstractUser):
         verbose_name_plural = _("Users")
 
     def has_google_account(self):
-        try:
-            return self.google_account is not None
-        except User.google_account.RelatedObjectDoesNotExist:
-            return False
+        return self.firebase_uid != None
 
     def has_phone_number(self):
         try:
@@ -164,6 +163,9 @@ class StakeholderAccount(TimeStampedBaseModel):
         User, on_delete=models.CASCADE, related_name="stakeholder_account")
     is_verified = models.BooleanField(default=False)
 
+    def __str__(self):
+        return f"{self.user.email} - ({'Is verified' if self.is_verified else 'Not verified'})"
+
 
 def upload_identity_image(instance, filename: str):
     # Use the user's ID and the original filename to create a unique path
@@ -191,9 +193,3 @@ class GovIssuedIdentity(TimeStampedBaseModel):
     class Meta:
         verbose_name = _("Gov Issued Identity")
         verbose_name_plural = _("Gov Issued Identities")
-
-
-class GoogleAccount(TimeStampedBaseModel):
-    google_id = models.CharField(max_length=255, unique=True)
-    user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="google_account")
