@@ -60,7 +60,7 @@ RUN mkdir -p /app/logs && \
     chmod -R 755 /app/logs
 
 # Switch to the non-privileged user to run the application.
-USER appuser
+USER root
 
 # Expose the port that the application listens on.
 EXPOSE 8000
