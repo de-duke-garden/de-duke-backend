@@ -55,7 +55,9 @@ COPY . .
 RUN python manage.py collectstatic --clear --noinput
 
 # Create logs directory and give permissions to appuser
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
+RUN mkdir -p /app/logs && \
+    chown -R appuser:appuser /app/logs && \
+    chmod -R 755 /app/logs
 
 # Switch to the non-privileged user to run the application.
 USER appuser
