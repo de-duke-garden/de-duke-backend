@@ -35,6 +35,10 @@ collectstatic-dev:
 	@echo "Collecting static files on service `backend`"
 	docker compose -f compose.dev.yaml exec backend python manage.py collectstatic --noinput
 
+ssl-generate-dev:
+	@echo "Generating SSL certificates with Certbot"
+	docker compose -f compose.stagging.yaml exec certbot certbot certonly --webroot --webroot-path=/var/lib/letsencrypt -d localhost
+
 
 # stagging Targets
 start-stagging:
@@ -73,9 +77,9 @@ collectstatic-stagging:
 	@echo "Collecting static files on service `backend`"
 	docker compose -f compose.stagging.yaml exec backend python manage.py collectstatic --noinput
 
-certbot-generate:
+ssl-generate-stagging:
 	@echo "Generating SSL certificates with Certbot"
-	docker compose -f compose.stagging.yaml run --rm certbot certonly --webroot --webroot-path=/var/lib/letsencrypt -d de-duke.com
+	docker compose -f compose.stagging.yaml exec certbot certbot certonly --webroot --webroot-path=/var/lib/letsencrypt -d de-duke.com
 
 # Production Targets
 start:
