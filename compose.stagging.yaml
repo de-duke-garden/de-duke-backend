@@ -37,7 +37,9 @@ services:
       timeout: 5s
       retries: 5
   nginx:
-    image: nginx:latest
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: nginx-stagging
     restart: unless-stopped
     ports:
