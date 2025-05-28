@@ -1,7 +1,7 @@
 from main.settings.dev import *
 
 
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["de-duke.com", "www.de-duke.com"]
 
