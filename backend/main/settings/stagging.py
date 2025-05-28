@@ -3,7 +3,7 @@ from main.settings.dev import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["de-duke.com"]
 
 DATABASES = {
     'default': {
@@ -18,5 +18,6 @@ DATABASES = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "https://your-production-frontend.com",
+    "https://de-duke.com",
+    "https://www.de-duke.com",
 ]
