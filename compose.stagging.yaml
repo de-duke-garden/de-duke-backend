@@ -44,11 +44,14 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - ./nginx/nginx-stagging.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf  # Mount the base configuration
+      - ./nginx/nginx-stagging.conf:/etc/nginx/conf.d/default.conf  # Mount the staging configuration
+      - ./nginx/certs/:/etc/nginx/certs/  # Mount the directory for SSL certificates
       - ./backend/staticfiles:/app/staticfiles
       # - ./backend/mediafiles:/app/mediafiles
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
+      
     depends_on:
       backend:
         condition: service_started

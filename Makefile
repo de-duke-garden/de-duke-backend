@@ -117,3 +117,9 @@ prune:
 collectstatic:
 	@echo "Collecting static files on service `backend`"
 	docker compose -f compose.yaml exec backend python manage.py collectstatic --noinput
+
+
+# General Targets
+dummy-cert:
+	@echo "Generating dummy SSL certificates for local development"
+	openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./nginx/certs/dummy-key.pem -out ./nginx/certs/dummy-cert.pem -subj "//CN=localhost"
