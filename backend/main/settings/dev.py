@@ -299,4 +299,4 @@ MAP_WIDGETS = {
 }
 
 # SSL settings
-SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False") == "True"
+# SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False") == "True"

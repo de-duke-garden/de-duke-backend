@@ -3,7 +3,7 @@ from main.settings.dev import *
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["de-duke.com", "www.de-duke.com"]
+ALLOWED_HOSTS = ["de-duke.com", "www.de-duke.com", "206.189.62.50"]
 
 DATABASES = {
     'default': {
