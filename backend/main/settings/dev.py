@@ -297,3 +297,6 @@ MAP_WIDGETS = {
         "markerFitZoom": 14,
     }
 }
+
+# SSL settings
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True") == "True"
