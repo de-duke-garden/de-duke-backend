@@ -21,3 +21,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://de-duke.com",
     "https://www.de-duke.com",
 ]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
