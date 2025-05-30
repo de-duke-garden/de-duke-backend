@@ -18,7 +18,7 @@ services:
       db:
         condition: service_healthy
   db:
-    image: postgres
+    image: postgis/postgis:latest
     container_name: db-stagging
     restart: always
     user: postgres
