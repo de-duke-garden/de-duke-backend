@@ -1,0 +1,26 @@
+http:
+  # Add the router
+  routers:
+    backend:
+      entryPoints:
+        - web
+      service: backend
+      rule:  Host(`192.168.0.111`) || Host(`127.0.0.1`) || Host(`backend.vanguardhosting.local`)
+    # frontend:
+    #   entryPoints:
+    #     - web
+    #   service: frontend
+    #   rule: Host(`vanguardhosting.local`)
+
+  # Add the service
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: http://backend:8000
+        passHostHeader: true
+    # frontend:
+    #   loadBalancer:
+    #     servers:
+    #       - url: http://frontend:3000
+    #     passHostHeader: false

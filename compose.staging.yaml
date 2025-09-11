@@ -2,34 +2,34 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
-    container_name: deduke-backend-dev
+      dockerfile: Dockerfile.staging
+    container_name: deduke-backend-staging
     restart: unless-stopped
     expose:
       - 8000
     volumes:
       - ./backend:/app
     env_file:
-      - ./backend/.env.development
+      - ./backend/.env.staging
     depends_on:
       db:
         condition: service_healthy
   # frontend:
   #     build:
   #       context: ./frontend
-  #       dockerfile: Dockerfile.dev
-  #     container_name: deduke-frontend-dev
+  #       dockerfile: Dockerfile.staging
+  #     container_name: deduke-frontend-staging
   #     restart: unless-stopped
   #     expose:
   #       - 3000
-  #     env_file:
-  #       - ./frontend/.env.development
+  #     # env_file:
+  #     #   - ./frontend/.env.staging
   #     depends_on:
   #       backend:
   #         condition: service_started
   db:
     image: postgis/postgis:latest
-    container_name: deduke-db-dev
+    container_name: deduke-db-staging
     restart: always
     user: postgres
     secrets:
@@ -37,7 +37,7 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=postgres #TODO: make sure to use your prefered db name
+      - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
     expose:
       - 5432
@@ -49,27 +49,25 @@ services:
 
   traefik:
     image: traefik:v3.5
-    container_name: deduke-traefik-dev
+    container_name: deduke-traefik-staging
     restart: unless-stopped
     ports:
       - "80:80"
-      - "8080:8080"  # Traefik dashboard
+      # - "443:443"
+      - "8080:8080"  # Traefik dashboard (remove in production)
     volumes:
-      - ./traefik/dev/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dev/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/staging/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/staging/dynamic:/etc/traefik/dynamic:ro
+      - letsencrypt:/etc/letsencrypt
+        
     depends_on:
       - backend
       # - frontend
-  
-  redis:
-    image: redis:latest
-    container_name: deduke-redis-dev
-    restart: unless-stopped
-    expose:
-      - 6379
 
 volumes:
   db-data:
+  letsencrypt:
+
 secrets:
   db-password:
-    file: db/.secrets/password.dev.txt
+    file: db/.secrets/password.staging.txt

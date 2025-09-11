@@ -74,6 +74,15 @@ class User(AbstractUser):
             return self.stakeholder_account is not None
         except User.stakeholder_account.RelatedObjectDoesNotExist:
             return False
+    
+    def is_stakeholder_verified(self):
+        """
+        Check if the user is a verified stakeholder.
+        """
+        try:
+            return self.stakeholder_account.is_verified
+        except User.stakeholder_account.RelatedObjectDoesNotExist:
+            return False
 
 
 class TimeStampedBaseModel(models.Model):
@@ -89,7 +98,7 @@ class OTPRequest(TimeStampedBaseModel):
     # Hashed random token for device identity
     device_identity = models.CharField(max_length=255)
     otp = models.CharField(max_length=6)
-    is_verified = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False, help_text=_("Designates whether the OTP has been verified."))
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -157,39 +166,76 @@ class PhoneNumber(TimeStampedBaseModel):
         verbose_name = _("Phone Number")
         verbose_name_plural = _("Phone Numbers")
 
-
-class StakeholderAccount(TimeStampedBaseModel):
-    user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="stakeholder_account")
-    is_verified = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"{self.user.email} - ({'Is verified' if self.is_verified else 'Not verified'})"
-
-
 def upload_identity_image(instance, filename: str):
     # Use the user's ID and the original filename to create a unique path
     root, ext = os.path.splitext(filename)
     # support only 1 upload/stakeholders
     return f"identities/{instance.user.email}.{ext}"
 
+def upload_stakeholder_image(instance, filename: str):
+    """
+    Custom handler for the upload_to parameter of the ImageField.
+    """
+    # Use the user's ID and the original filename to create a unique path
+    root, ext = os.path.splitext(filename)
+    return f"stakeholders/{instance.user.email}.{ext}"
 
-class GovIssuedIdentity(TimeStampedBaseModel):
+
+class StakeholderAccount(TimeStampedBaseModel):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="stakeholder_account")
+    is_verified = models.BooleanField(default=False, help_text=_("Designates whether the stakeholder account has been verified."))
     IDENTITY_CHOICES = (
         ('bvn', 'BVN'),
         ('nin', 'NIN'),
-        ('national_passport', 'National Passport')
+        ('passport', 'National Passport')
     )
-    type = models.CharField(
+    identity_type = models.CharField(
         _("Identity Type"), max_length=50, choices=IDENTITY_CHOICES)
-    image = models.ImageField(
+    identity_image = models.ImageField(
         _("Identity Shot"),
         upload_to=upload_identity_image,
         max_length=255
     )
-    stakeholder = models.OneToOneField(
-        StakeholderAccount, on_delete=models.CASCADE, related_name="identity")
+    stakeholder_photo = models.ImageField(
+        _("Stakeholder Photo"),
+        upload_to=upload_stakeholder_image,
+        max_length=255,
+    )
+    identity_number = models.CharField(
+        _("Identity Number"), max_length=100, unique=True, help_text=_("Unique number for the identity.")
+    )
+
+    def __str__(self):
+        return f"{self.user.email} - ({'Is verified' if self.is_verified else 'Not verified'})"
+
+
+
+
+# class GovIssuedIdentity(TimeStampedBaseModel):
+#     IDENTITY_CHOICES = (
+#         ('bvn', 'BVN'),
+#         ('nin', 'NIN'),
+#         ('national_passport', 'National Passport')
+#     )
+#     type = models.CharField(
+#         _("Identity Type"), max_length=50, choices=IDENTITY_CHOICES)
+#     image = models.ImageField(
+#         _("Identity Shot"),
+#         upload_to=upload_identity_image,
+#         max_length=255
+#     )
+#     stakeholder_photo = models.ImageField(
+#         _("Stakeholder Photo"),
+#         upload_to=upload_stakeholder_image,
+#         max_length=255,
+#     )
+#     identity_number = models.CharField(
+#         _("Identity Number"), max_length=100, unique=True, help_text=_("Unique number for the identity.")
+#     )
+#     stakeholder = models.OneToOneField(
+#         StakeholderAccount, on_delete=models.CASCADE, related_name="identity")
     
-    class Meta:
-        verbose_name = _("Gov Issued Identity")
-        verbose_name_plural = _("Gov Issued Identities")
+#     class Meta:
+#         verbose_name = _("Gov Issued Identity")
+#         verbose_name_plural = _("Gov Issued Identities")

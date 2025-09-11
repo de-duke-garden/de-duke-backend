@@ -55,13 +55,20 @@ COPY . .
 RUN python manage.py collectstatic --clear --noinput
 
 # Create logs directory and give permissions to appuser
-RUN mkdir -p /app/logs && \
-    chown -R appuser:appuser /app/logs && \
-    chmod -R 755 /app/logs
+RUN mkdir -p /app/.logs && \
+    chown -R appuser:appuser /app/.logs && \
+    chmod -R 755 /app/.logs
+
+# Copy the entrypoint script
+COPY entrypoint.staging.sh /entrypoint.sh
+
+# Make it executable
+RUN chmod +x /entrypoint.sh
 
 # Switch to the non-privileged user to run the application.
-USER root
+USER appuser
 
 # Expose the port that the application listens on.
 EXPOSE 8000
 
+ENTRYPOINT ["/entrypoint.sh"]

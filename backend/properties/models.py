@@ -73,41 +73,98 @@ class Property(models.Model):
             return self.verified.verified_by
         return None
     
-    def save(self, *args, **kwargs):
+    @property
+    def price(self):
         """
-        Override the save method to reverse geocode the location into an address
-        only if the location has changed.
+        Get the price of the property based on its type.
         """
-        def _update_address():
-            gmaps = googlemaps.Client(key=settings.GOOGLE_MAP_API_KEY)
+        if self.property_type == "home":
+            home = getattr(self, 'homeproperty', None)
+            if home:
+                return home.price
+        elif self.property_type == "apartment":
+            apartment = getattr(self, 'apartmentproperty', None)
+            if apartment:
+                return apartment.price
+        return None
+    
+    def title(self):
+        """
+        Generate a title for the property based on its type and key attributes.
+        """
+        return self.address if self.address else "Property"
+    
+    def subtitle(self):
+        """
+        Generate a subtitle for the property based on its type and key attributes.
+        """
+        if self.property_type == "home":
+            home = getattr(self, 'homeproperty', None)
+            if home:
+                subtitle = ""
+                if home.home_type:
+                    subtitle += f"{home.home_type} | "
+                if home.architectural_style:
+                    subtitle += f"{home.architectural_style} | "
+                if home.property_condition:
+                    subtitle += f"{home.property_condition} | "
+                subtitle += f"{home.total_bedrooms()} Bed, {home.total_bathrooms()} Bath property for {home.list_type.lower()}"
+                return subtitle
+        elif self.property_type == "apartment":
+            apartment = getattr(self, 'apartmentproperty', None)
+            if apartment:
+                subtitle = ""
+                if apartment.apartment_type:
+                    subtitle += f"{apartment.apartment_type} | "
+                if apartment.has_dishwasher:
+                    subtitle += f"Dishwasher | "
+                if apartment.has_washer:
+                    subtitle += f"Washer | "
+                if apartment.has_dryer:
+                    subtitle += f"Dryer | "
+                if apartment.has_oven:
+                    subtitle += f"Oven | "
+                if apartment.has_refrigerator:
+                    subtitle += f"Refrigerator | "
+                subtitle += "property for rent"
+                return subtitle
+        return "Property"
+    
+    # def save(self, *args, **kwargs):
+    #     """
+    #     Override the save method to reverse geocode the location into an address
+    #     only if the location has changed.
+    #     """
+    #     def _update_address():
+    #         gmaps = googlemaps.Client(key=settings.GOOGLE_MAP_API_KEY)
 
-            # Extract latitude and longitude from the PointField
-            latitude = self.location.y
-            longitude = self.location.x
+    #         # Extract latitude and longitude from the PointField
+    #         latitude = self.location.y
+    #         longitude = self.location.x
 
-            try:
-                # Perform reverse geocoding
-                result = gmaps.reverse_geocode((latitude, longitude))
-                if result:
-                    # Extract the formatted address from the response
-                    self.address = result[0]['formatted_address']
-            except Exception as e:
-                # Log the error if reverse geocoding fails
-                logger.error(f"Error during reverse geocoding: {e}")
+    #         try:
+    #             # Perform reverse geocoding
+    #             result = gmaps.reverse_geocode((latitude, longitude))
+    #             if result:
+    #                 # Extract the formatted address from the response
+    #                 self.address = result[0]['formatted_address']
+    #         except Exception as e:
+    #             # Log the error if reverse geocoding fails
+    #             logger.error(f"Error during reverse geocoding: {e}")
 
-        # Check if the instance already exists in the database
-        if self.pk:
-            # Fetch the existing instance from the database
-            existing_instance = Property.objects.get(pk=self.pk)
-            # Compare the current location with the existing location
-            if self.location != existing_instance.location:
-                _update_address()
-        else:
-            # For new instances, always perform reverse geocoding
-            if self.location:
-                _update_address()
+    #     # Check if the instance already exists in the database
+    #     if self.pk:
+    #         # Fetch the existing instance from the database
+    #         existing_instance = Property.objects.get(pk=self.pk)
+    #         # Compare the current location with the existing location
+    #         if existing_instance and self.location != existing_instance.location:
+    #             _update_address()
+    #     else:
+    #         # For new instances, always perform reverse geocoding
+    #         if self.location:
+    #             _update_address()
 
-        super().save(*args, **kwargs)
+    #     super().save(*args, **kwargs)
 
 
 # id, image, ads_id, is_primary
@@ -130,83 +187,73 @@ class PropertyImage(models.Model):
     
 
 
-# id, list_type, price, has_c_of_o, has_deed_of_assignment, has_power_of_atorney, has_survey_plan, has_governors_consent, total_bathrooms, total_full_bathrooms, laundry_level, has_basement, has_fireplace, total_structure_area, total_interior_livable_area, finished_area_above_ground, finished_area_below_ground, total_parking_spaces, parking_feature, garage_spaces, parel_number, special_conditions, home_type, architectural_style, property_condition, year_built, has_fitness_center, has_game_room, has_bicycle_storage, has_swimming_pool, allow_small_dog, allow_large_dog, allow_cat, property_id, property_listed_by_id, property_listed_by_user_id, property_verified_id, property_verified_user_id
 class HomeProperty(Property):
     """
     HomeProperty model class
     """
     LISTING_TYPE_CHOICES = [
-        ('sale', 'Sale'),
-        ('rent', 'Rent'),
-        ('lease', 'Lease'),
+        ('Sale', 'Sale'),
+        ('Rent', 'Rent'),
+        ('Lease', 'Lease'),
     ]
 
     PARKING_FEATURE_CHOICES = [
-        ('attached', 'Attached'),
-        ('detached', 'Detached'),
-        ('carport', 'Carport'),
-        ('street', 'Street'),
+        ('Attached', 'Attached'),
+        ('Detached', 'Detached'),
+        ('Carport', 'Carport'),
+        ('Street', 'Street'),
     ]
 
     HOME_TYPE_CHOICES = [
-        ('single_family', _('Single Family')),
-        ('multi_family', _('Multi Family')),
-        ('townhouse', _('Townhouse')),
-        ('condo', _('Condo')),
-        ('apartment', _('Apartment')),
-        ('duplex', _('Duplex')),
-        ('triplex', _('Triplex')),
-        ('quadruplex', _('Quadruplex')),
-        ('mobile_home', _('Mobile Home')),
-        ('manufactured_home', _('Manufactured Home')),
-        ('modular_home', _('Modular Home')),
-        ('vacation_home', _('Vacation Home')),
-        ('farm', _('Farm')),
+        ('Single Family', _('Single Family')),
+        ('Multi Family', _('Multi Family')),
+        ('Townhouse', _('Townhouse')),
+        ('Mobile Home', _('Mobile Home')),
+        ('Manufactured Home', _('Manufactured Home')),
+        ('Modular Home', _('Modular Home')),
+        ('Vacation Home', _('Vacation Home')),
+        ('Farm', _('Farm')),
         # ('land', _('Land')),
-        ('commercial', _('Commercial')),
-        ('industrial', _('Industrial')),
-        ('mixed_use', _('Mixed Use')),
-        ('other', _('Other')),
+        ('Commercial', _('Commercial')),
+        ('Industrial', _('Industrial')),
     ]
 
     ARCHITECTURAL_STYLE_CHOICES = [
-        ('modern', _('Modern')),
-        ('traditional', _('Traditional')),
-        ('contemporary', _('Contemporary')),
-        ('colonial', _('Colonial')),
-        ('craftsman', _('Craftsman')),
-        ('ranch', _('Ranch')),
-        ('victorian', _('Victorian')),
-        ('farmhouse', _('Farmhouse')),
-        ('cottage', _('Cottage')),
-        ('mediterranean', _('Mediterranean')),
-        ('tudor', _('Tudor')),
-        ('art_deco', _('Art Deco')),
-        ('mid_century_modern', _('Mid-Century Modern')),
-        ('industrial', _('Industrial')),
-        ('beach', _('Beach')),
-        ('mountain', _('Mountain')),
-        ('lake', _('Lake')),
-        ('desert', _('Desert')),
-        ('other', _('Other')),
+        ('Modern', _('Modern')),
+        ('Traditional', _('Traditional')),
+        ('Contemporary', _('Contemporary')),
+        ('Colonial', _('Colonial')),
+        ('Craftsman', _('Craftsman')),
+        ('Ranch', _('Ranch')),
+        ('Victorian', _('Victorian')),
+        ('Farmhouse', _('Farmhouse')),
+        ('Cottage', _('Cottage')),
+        ('Mediterranean', _('Mediterranean')),
+        ('Tudor', _('Tudor')),
+        ('Art Deco', _('Art Deco')),
+        ('Mid-Century Modern', _('Mid-Century Modern')),
+        ('Industrial', _('Industrial')),
+        ('Beach', _('Beach')),
+        ('Mountain', _('Mountain')),
+        ('Lake', _('Lake')),
+        ('Desert', _('Desert')),
     ]
 
     PROPERTY_CONDITION_CHOICES = [
-        ('new', _('New')),
-        ('like_new', _('Like New')),
-        ('excellent', _('Excellent')),
-        ('good', _('Good')),
-        ('fair', _('Fair')),
-        ('poor', _('Poor')),
-        ('needs_work', _('Needs Work')),
-        ('under_renovation', _('Under Renovation')),
-        ('under_construction', _('Under Construction')),
-        ('vacant', _('Vacant')),
-        ('occupied', _('Occupied')),
-        ('foreclosure', _('Foreclosure')),
-        ('short_sale', _('Short Sale')),
-        ('bank_owned', _('Bank Owned')),
-        ('other', _('Other')),
+        ('New', _('New')),
+        ('Like New', _('Like New')),
+        ('Excellent', _('Excellent')),
+        ('Good', _('Good')),
+        ('Fair', _('Fair')),
+        ('Poor', _('Poor')),
+        ('Needs Work', _('Needs Work')),
+        ('Under Renovation', _('Under Renovation')),
+        ('Under Construction', _('Under Construction')),
+        ('Vacant', _('Vacant')),
+        ('Occupied', _('Occupied')),
+        ('Foreclosure', _('Foreclosure')),
+        ('Short Sale', _('Short Sale')),
+        ('Bank Owned', _('Bank Owned')),
     ]
 
     list_type = models.CharField(max_length=10, choices=LISTING_TYPE_CHOICES)
@@ -229,7 +276,7 @@ class HomeProperty(Property):
     parking_feature = models.CharField(max_length=50, blank=True, null=True, choices=PARKING_FEATURE_CHOICES)
     garage_spaces = models.IntegerField(blank=True, null=True)
     parcel_number = models.CharField(max_length=50, blank=True, null=True)
-    home_type = models.CharField(max_length=50, blank=True, null=True)
+    home_type = models.CharField(max_length=50, choices=HOME_TYPE_CHOICES)
     architectural_style = models.CharField(max_length=50, blank=True, null=True, choices=ARCHITECTURAL_STYLE_CHOICES)
     property_condition = models.CharField(max_length=50, blank=True, null=True,  choices=PROPERTY_CONDITION_CHOICES)
     year_built = models.IntegerField(blank=True, null=True)
@@ -252,9 +299,11 @@ class HomeProperty(Property):
         """
         Calculate the finished area of the property.
         """
-        if self.finished_area_above_ground and self.finished_area_below_ground:
-            return self.finished_area_above_ground + self.finished_area_below_ground
-        return None
+        # if self.finished_area_above_ground and self.finished_area_below_ground:
+        #     return self.finished_area_above_ground + self.finished_area_below_ground
+        # return None
+        return (self.finished_area_above_ground or 0) + (self.finished_area_below_ground or 0)
+    
     def total_bathrooms(self):
         """
         Calculate the total number of bathrooms.
@@ -269,6 +318,12 @@ class HomeProperty(Property):
         if hasattr(self, 'bedrooms'):
             return self.bedrooms.count()
         return 0
+
+    def is_bookmarked(self, user):
+        """
+        Check if the property is bookmarked by the given user.
+        """
+        return self.bookmarked_properties.filter(user=user).exists()
     
     def save(self, *args, **kwargs):
         """
@@ -312,23 +367,19 @@ class ApartmentProperty(Property):
     ApartmentProperty model class
     """
     APARTMENT_TYPE_CHOICES = [
-        ('studio', 'Studio'),
-        ('1_bedroom', '1 Bedroom'),
-        ('2_bedroom', '2 Bedroom'),
-        ('3_bedroom', '3 Bedroom'),
-        ('4_bedroom', '4 Bedroom'),
-        ('5_bedroom', '5 Bedroom'),
-        ('penthouse', 'Penthouse'),
-        ('loft', 'Loft'),
-        ('duplex', 'Duplex'),
-        ('triplex', 'Triplex'),
-        ('hotel', 'Hotel'),
-        ('hostel', 'Hostel'),
-        ('other', 'Other'),
+        ('Hostel', 'Hostel'),
+        ('Hotel', 'Hotel'),
+        ('1 Bedroom', '1 Bedroom'),
+        ('2 Bedroom', '2 Bedroom'),
+        ('3 Bedroom', '3 Bedroom'),
+        ('Duplex', 'Duplex'),
+        ('Triplex', 'Triplex'),
+        ('Penthouse', 'Penthouse'),
+        ('Loft', 'Loft'),
     ]
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    apartment_type = models.CharField(max_length=50, blank=True, null=True, choices=APARTMENT_TYPE_CHOICES)
+    apartment_type = models.CharField(max_length=50, choices=APARTMENT_TYPE_CHOICES)
     has_dishwasher = models.BooleanField(null=True, blank=True)
     has_washer = models.BooleanField(null=True, blank=True)
     has_dryer = models.BooleanField(null=True, blank=True)
@@ -342,6 +393,12 @@ class ApartmentProperty(Property):
 
     def __str__(self):
         return f"ApartmentProperty: {self.address[:100]}..."
+    
+    def is_bookmarked(self, user):
+        """
+        Check if the property is bookmarked by the given user.
+        """
+        return self.bookmarked_properties.filter(user=user).exists()
     
     def save(self, *args, **kwargs):
         """
@@ -405,3 +462,45 @@ class BookmarkedProperty(models.Model):
 
     def __str__(self):
         return f"BookmarkedProperty: {self.property.address[:100]}..."
+
+
+class InterestedProperty(models.Model):
+    """
+    InterestedProperty model class
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    property = models.ForeignKey(Property, related_name="interested_properties", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name="interested_properties", on_delete=models.CASCADE)
+    responder = models.ForeignKey(User, related_name="responded_interested_properties", on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Interested Property"
+        verbose_name_plural = "Interested Properties"
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Property {self.property.address[:100]} - Interested by {self.user.email}"
+    
+    def owner(self):
+        """
+        Get the owner of the property.
+        """
+        return self.property.listed_by.user if self.property and self.property.listed_by else None
+
+
+class InterestedPropertyDialog(models.Model):
+    """
+    InterestedPropertyDialog model class
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    interested_property = models.ForeignKey(InterestedProperty, related_name="dialogs", on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, related_name="sent_interested_property_dialogs", on_delete=models.CASCADE)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Interested Property Dialog"
+        verbose_name_plural = "Interested Property Dialogs"
+        ordering = ["created_at"]

@@ -1,0 +1,29 @@
+http:
+  # Add the router
+  routers:
+    backend:
+      entryPoints:
+        - web
+      service: backend
+      # rule: Host(`de-duke.com`) || Host(`www.de-duke.com`)
+      rule: Host(`backend.vanguardhosting.local`)
+      tls:
+        certResolver: letsencrypt
+    # frontend:
+    #   entryPoints:
+    #     - web
+    #   service: frontend
+    #   rule: Host(`vanguardhosting.local`)
+
+  # Add the service
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: http://backend:8000
+        passHostHeader: false
+    # frontend:
+    #   loadBalancer:
+    #     servers:
+    #       - url: http://frontend:3000
+    #     passHostHeader: false

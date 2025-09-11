@@ -36,6 +36,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     # Local apps
+    'payments',
     'accounts',
     'api_auth',
     'properties',
@@ -43,8 +44,9 @@ INSTALLED_APPS = [
     # Third-party packages
     'corsheaders',
     'daphne',
-    'drf_yasg',
     'rest_framework',
+    'django_filters',
+    'drf_spectacular',
     'nested_admin',
     'mapwidgets',
     # Platform packages
@@ -171,13 +173,29 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 
-# Swagger settings
-SWAGGER_SETTINGS = {
-    'LOGOUT_URL': 'rest_framework:logout',
-    'LOGIN_URL': 'rest_framework:login',
+# DRF Spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'De-Duke API',
+    'DESCRIPTION': """**De-Duke Garden Care** is envisioned as a comprehensive online platform designed to streamline property transactions by connecting property owners, landlords, and potential tenants or buyers.""",
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {
+        'email': 'khidirahmad05@gmail.com',
+        'name': 'Ahmad Khidir',
+        'url': 'https://linkedin.com/in/ahmadkhidir/',
+    },
+    'LICENSE': {
+        'name': 'De-Duke License',
+    },
+    'SWAGGER_UI_SETTINGS': {
+        'persistAuthorization': True,  # Keeps the authorization token after page reload
+    },
+    'LOGIN_URL': '/auth/login/',  # Add the login URL
+    'LOGOUT_URL': '/auth/logout/',  # Add the logout URL
 }
 
 
@@ -217,7 +235,7 @@ EMAIL_TIMEOUT = 30  # 30 seconds timeout for email sending
 OTP_EXPIRATION_TIME = 300  # 5 minutes
 
 # Logging settings
-LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR = BASE_DIR / '.logs'
 if not LOG_DIR.exists():
     LOG_DIR.mkdir()
 
@@ -241,7 +259,7 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs/django.log',  # Log file path
+            'filename': LOG_DIR / 'django.log',  # Log file path
             'formatter': 'verbose',
         },
     },
@@ -258,9 +276,9 @@ FRONTEND_PASSWORD_RESET_URL = os.getenv("FRONTEND_PASSWORD_RESET_URL", "http://l
 FRONTEND_VERIFY_EMAIL_URL = os.getenv("FRONTEND_VERIFY_EMAIL_URL", "http://localhost:3000/verify-email")
 
 # Firebase settings
-FIREBASE_CRED_DIR = BASE_DIR / '.firebase'
-if not FIREBASE_CRED_DIR.exists():
-    FIREBASE_CRED_DIR.mkdir()
+FIREBASE_CRED_DIR = BASE_DIR
+# if not FIREBASE_CRED_DIR.exists():
+#     FIREBASE_CRED_DIR.mkdir()
 
 FIREBASE_CRED_FILE = os.getenv("FIREBASE_CRED_FILE")
 
@@ -300,3 +318,7 @@ MAP_WIDGETS = {
 
 # SSL settings
 # SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False") == "True"
+# Flutterwave settings
+FLUTTERWAVE_SECRET_KEY = os.getenv("FLUTTERWAVE_SECRET_KEY")
+# FLUTTERWAVE_PUBLIC_KEY = os.getenv("FLUTTERWAVE_PUBLIC_KEY")
+FLUTTERWAVE_REDIRECT_URL = os.getenv("FLUTTERWAVE_REDIRECT_URL")

@@ -1,3 +1,7 @@
+# =============================================================================
+# PYTHON / DJANGO
+# =============================================================================
+
 # Byte-compiled / optimized / DLL files
 **/__pycache__/
 *.py[cod]
@@ -16,43 +20,110 @@
 **/build/
 *.egg
 
-# Django stuff
-*.log
+# Django specific
+**/*.log
 *.pot
 *.pyc
 db.sqlite3
-# Uncomment this if you use Django migrations but want to exclude migration files
-# **/migrations/
-# Include specific migration files
-# !**/migrations/0001_initial.py
-
-# Media / uploaded files
 **/media/
 **/mediafiles/
-
-# Static files
 **/staticfiles/
 **/static/
-
-# settings
 **/settings_local.py
+
+# Firebase credentials
+**/*firebase-adminsdk.json
+
+# Django migrations (uncomment if you want to exclude them)
+# **/migrations/
+# !**/migrations/__init__.py
+# !**/migrations/0001_initial.py
+
+# =============================================================================
+# NODE.JS / NEXT.JS
+# =============================================================================
+
+# Dependencies
+**/node_modules
+**/.pnp
+**/.pnp.*
+
+# Yarn
+**/.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Testing
+**/coverage
+
+# Next.js
+**/.next/
+**/out/
+
+# Production builds
+**/build
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+**/next-env.d.ts
+
+# Vercel
+**/.vercel
+
+# =============================================================================
+# ENVIRONMENT & SECRETS
+# =============================================================================
+
+# Environment files
 .env
 .env.*
-.env_file/*
-.secrets/**/*
+!frontend/.env.*
+
+# Secrets
+**/.secrets/**/*
+
+# Firebase
 **/.firebase/*
+
+# SSL Certificates
 **.csr
 **.key
+*.pem
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
 
 # IDEs
 .vscode/
 .idea/
 
-# OS Files
+# System Files
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# System Files
 *.swp
 *.swo
+
+# =============================================================================
+# DOCKER & DEPLOYMENT
+# =============================================================================
+
+# Docker volumes (if any local data)
+# docker-volumes/
+
+# =============================================================================
+# MISC
+# =============================================================================
+
+# Temporary files
+*.tmp
+*.temp

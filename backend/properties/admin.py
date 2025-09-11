@@ -3,6 +3,12 @@ from . import models
 from django.contrib.gis.db import models as gis_models
 import mapwidgets
 import nested_admin
+import googlemaps
+from django.conf import settings
+import logging
+from properties.models import Property
+
+logger = logging.getLogger("django")
 
 
 class PropertyAdminInlineProxy:
@@ -59,6 +65,38 @@ class PropertyAdminProxy:
     def save_model(self, request, obj, form, change):
         if not change:
             obj.listed_by = request.user.stakeholder_account
+        """
+        Override the save method to reverse geocode the location into an address
+        only if the location has changed.
+        """
+        def _update_address():
+            gmaps = googlemaps.Client(key=settings.GOOGLE_MAP_API_KEY)
+
+            # Extract latitude and longitude from the PointField
+            latitude = obj.location.y
+            longitude = obj.location.x
+
+            try:
+                # Perform reverse geocoding
+                result = gmaps.reverse_geocode((latitude, longitude))
+                if result:
+                    # Extract the formatted address from the response
+                    obj.address = result[0]['formatted_address']
+            except Exception as e:
+                # Log the error if reverse geocoding fails
+                logger.error(f"Error during reverse geocoding: {e}")
+
+            # Check if the instance already exists in the database
+        if change:
+            # Fetch the existing instance from the database
+            existing_instance = Property.objects.get(pk=change.pk)
+            # Compare the current location with the existing location
+            if existing_instance and change.location != existing_instance.location:
+                _update_address()
+        else:
+            # For new instances, always perform reverse geocoding
+            if obj.location:
+                _update_address()
         return super().save_model(request, obj, form, change)
 
     def has_add_permission(self, request):
@@ -122,3 +160,14 @@ class VerifiedPropertyAdmin(admin.ModelAdmin):
         if not hasattr(obj, 'verified_by') or (hasattr(obj, 'verified_by') and obj.verified_by is None):
             obj.verified_by = request.user
         return super().save_model(request, obj, form, change)
+
+
+@admin.register(models.InterestedProperty)
+class InterestedPropertyAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        # InterestedProperty should not be added via admin
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # InterestedProperty should not be changed via admin
+        return False

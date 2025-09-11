@@ -1,0 +1,15 @@
+api:
+  dashboard: true
+  insecure: true  # For development - remove in production
+
+entryPoints:
+  web:
+    address: :80
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+log:
+  level: INFO

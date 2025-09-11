@@ -4,18 +4,18 @@ from utilities.email import EmailDispatcher
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework import views, permissions, status
+from rest_framework import views, permissions, status, parsers
 from rest_framework.response import Response
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.request import Request
 from django_ratelimit.decorators import ratelimit
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from django.contrib.auth import get_user_model
-from .models import OTPRequest
-from .serializers import PhoneNumberSerializer, ResetPasswordWithTokenSerializer, UserSerializer, UserMeSerializer, ChangeAccountPasswordSerializer, VerifyEmailSerializer
+from .models import OTPRequest, StakeholderAccount
+from .serializers import BecomeAStakeholderSerializer, PhoneNumberSerializer, ResetPasswordWithTokenSerializer, UserCreateSerializer
+from .serializers import UserSerializer, UserMeSerializer, ChangeAccountPasswordSerializer, VerifyEmailSerializer
 from .serializers import SendOTPSerializer, VerifyOTPSerializer, ResetPasswordSerializer
 import logging
 import jwt
@@ -27,6 +27,17 @@ logger = logging.getLogger("django")
 User = get_user_model()
 
 
+@extend_schema_view(
+    signup=extend_schema(
+        summary="Sign Up",
+        description="Create a new user account.",
+        request=UserCreateSerializer,
+        responses={
+            status.HTTP_201_CREATED: UserCreateSerializer,
+            status.HTTP_400_BAD_REQUEST: None,
+        }
+    )
+)
 class UserViewSet(viewsets.mixins.ListModelMixin,
                   viewsets.mixins.RetrieveModelMixin,
                   viewsets.GenericViewSet):
@@ -36,21 +47,90 @@ class UserViewSet(viewsets.mixins.ListModelMixin,
     serializer_class = UserSerializer
     permission_classes = [permissions.AllowAny]
 
+    @action(methods=['POST'], detail=False, url_path='signup')
+    def signup(self, request: Request, *args, **kwargs):
+        """
+        Sign up a new user.
+        """
+        serializer = UserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            # Create a new user instance without saving it yet
+            user = User(**serializer.validated_data)
+            # Hash the password
+            user.set_password(serializer.validated_data['password'])
+            # Save the user to the database
+            user.save()
+            return Response(UserCreateSerializer(user).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@extend_schema_view(
+    change_password=extend_schema(
+        summary="Change Password",
+        description="Change the password of the authenticated user.",
+        request=ChangeAccountPasswordSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_400_BAD_REQUEST: None,
+            status.HTTP_406_NOT_ACCEPTABLE: None,
+        }
+    ),
+    get_profile=extend_schema(
+        summary="Get Profile",
+        description="Get the profile of the authenticated user.",
+        responses={
+            status.HTTP_200_OK: UserMeSerializer,
+        }
+    ),
+    update_profile=extend_schema(
+        summary="Update Profile",
+        description="Update the profile of the authenticated user.",
+        request=UserMeSerializer,
+        responses={
+            status.HTTP_200_OK: UserMeSerializer,
+            status.HTTP_400_BAD_REQUEST: None,
+        }
+    ),
+    add_phone_number=extend_schema(
+        summary="Add Phone Number",
+        description="Add a phone number to the authenticated user.",
+        request=PhoneNumberSerializer,
+        responses={
+            status.HTTP_200_OK: PhoneNumberSerializer,
+            status.HTTP_400_BAD_REQUEST: None,
+        }
+    ),
+    become_stakeholder=extend_schema(
+        summary="Become Stakeholder",
+        description="Become a stakeholder by providing identity details.",
+        request=BecomeAStakeholderSerializer,
+        responses={
+            status.HTTP_201_CREATED: None,
+            status.HTTP_400_BAD_REQUEST: None,
+            status.HTTP_404_NOT_FOUND: None,
+        }
+    )
+)
 class UserMeViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     lookup_field = 'pk'
     lookup_url_kwarg = 'pk'
-    serializer_class = UserMeSerializer
+    # serializer_class = UserMeSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.JSONParser, parsers.MultiPartParser]
+
+    def get_serializer_class(self):
+        if self.action in ['get_profile', 'update_profile']:
+            return UserMeSerializer
+        elif self.action == 'add_phone_number':
+            return PhoneNumberSerializer
+        elif self.action == 'become_stakeholder':
+            return BecomeAStakeholderSerializer
+        elif self.action == 'change_password':
+            return ChangeAccountPasswordSerializer
+        return UserMeSerializer
 
     @action(methods=['POST'], detail=False, url_path='change-password')
-    @swagger_auto_schema(
-        request_body=ChangeAccountPasswordSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-        }
-    )
     def change_password(self, request: Request, *args, **kwargs):
         """
         Change the password of the authenticated user.
@@ -71,11 +151,6 @@ class UserMeViewSet(viewsets.GenericViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(methods=['GET'], detail=False, url_path='profile')
-    @swagger_auto_schema(
-        responses={
-            status.HTTP_200_OK: UserMeSerializer,
-        }
-    )
     def get_profile(self, request: Request, *args, **kwargs):
         """
         Get the profile of the authenticated user.
@@ -85,13 +160,6 @@ class UserMeViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(methods=['PATCH'], detail=False, url_path='update-profile')
-    @swagger_auto_schema(
-        request_body=UserMeSerializer,
-        responses={
-            status.HTTP_200_OK: UserMeSerializer,
-            status.HTTP_400_BAD_REQUEST: None,
-        }
-    )
     def update_profile(self, request: Request, *args, **kwargs):
         """
         Update the profile of the authenticated user.
@@ -104,13 +172,6 @@ class UserMeViewSet(viewsets.GenericViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(methods=['POST'], detail=False, url_path='add-phone-number')
-    @swagger_auto_schema(
-        request_body=PhoneNumberSerializer,
-        responses={
-            status.HTTP_200_OK: PhoneNumberSerializer,
-            status.HTTP_400_BAD_REQUEST: None,
-        }
-    )
     def add_phone_number(self, request: Request, *args, **kwargs):
         """
         Add a phone number to the authenticated user.
@@ -127,9 +188,66 @@ class UserMeViewSet(viewsets.GenericViewSet):
 
             return Response(PhoneNumberSerializer(user.phone_number).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(methods=['POST'], detail=False, url_path='become-stakeholder', )
+    def become_stakeholder(self, request: Request, *args, **kwargs):
+        """
+        Become a stakeholder by providing identity details.
+        """
+        try:
+            user = request.user
+            serializer = BecomeAStakeholderSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=user)
+            return Response({'detail': 'Stakeholder account created successfully'
+                         }, status=status.HTTP_201_CREATED)
+        except User.stakeholder_account.RelatedObjectDoesNotExist:
+            return Response({'detail': 'Stakeholder account already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
+
+@extend_schema_view(
+    send_otp=extend_schema(
+        summary="Send OTP for Password Reset",
+        description="Send an OTP to the user's email address for password reset.",
+        request=SendOTPSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_404_NOT_FOUND: None,
+            status.HTTP_500_INTERNAL_SERVER_ERROR: None,
+        }
+    ),
+    verify_otp=extend_schema(
+        summary="Verify OTP for Password Reset",
+        description="Verify the OTP sent to the user's email address for password reset.",
+        request=VerifyOTPSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_400_BAD_REQUEST: None,
+        }
+    ),
+    reset_password=extend_schema(
+        summary="Reset Password",
+        description="Reset the user's password using the OTP sent to their email address.",
+        request=ResetPasswordSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_400_BAD_REQUEST: None,
+            status.HTTP_404_NOT_FOUND: None,
+        }
+    ),
+    reset_password_with_token=extend_schema(
+        summary="Reset Password with Token",
+        description="Reset the user's password using a JWT token.",
+        request=ResetPasswordWithTokenSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_400_BAD_REQUEST: None,
+            status.HTTP_404_NOT_FOUND: None,
+        }
+    )
+)
 class PasswordResetViewSet(viewsets.ViewSet):
     __ID_FOR = 'password-reset'
     def __ratelimit_key(group, self: 'PasswordResetViewSet'):
@@ -144,13 +262,6 @@ class PasswordResetViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['POST'])
     @ratelimit(key=__ratelimit_key, rate='3/10m')
-    @swagger_auto_schema(
-        request_body=SendOTPSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_404_NOT_FOUND: None,
-        }
-    )
     def send_otp(self, request: Request):
         """
         Send an OTP to the user's email address.
@@ -198,13 +309,6 @@ class PasswordResetViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['POST'])
     @ratelimit(key=__ratelimit_key, rate='5/10m')
-    @swagger_auto_schema(
-        request_body=VerifyOTPSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_400_BAD_REQUEST: None,
-        }
-    )
     def verify_otp(self, request):
         """
         Verify the OTP sent to the user's email address.
@@ -226,14 +330,6 @@ class PasswordResetViewSet(viewsets.ViewSet):
         return Response({'detail': 'OTP verified'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['POST'])
-    @swagger_auto_schema(
-        request_body=ResetPasswordSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_400_BAD_REQUEST: None,
-            status.HTTP_404_NOT_FOUND: None,
-        }
-    )
     def reset_password(self, request):
         """
         Reset the user's password using the OTP sent to their email address.
@@ -261,14 +357,6 @@ class PasswordResetViewSet(viewsets.ViewSet):
         return Response({'detail': 'Password reset successful'}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['POST'])
-    @swagger_auto_schema(
-        request_body=ResetPasswordWithTokenSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_400_BAD_REQUEST: None,
-            status.HTTP_404_NOT_FOUND: None,
-        }
-    )
     def reset_password_with_token(self, request):
         """
         Reset the user's password using a JWT token.
@@ -307,6 +395,37 @@ class PasswordResetViewSet(viewsets.ViewSet):
 
 
 
+@extend_schema_view(
+    send_otp=extend_schema(
+        summary="Send OTP for Email Verification",
+        description="Send an OTP to the user's email address for verification.",
+        request=SendOTPSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_404_NOT_FOUND: None,
+            status.HTTP_500_INTERNAL_SERVER_ERROR: None,
+        }
+    ),
+    verify_otp=extend_schema(
+        summary="Verify OTP for Email Verification",
+        description="Verify the OTP sent to the user's email address for verification.",
+        request=VerifyOTPSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_400_BAD_REQUEST: None,
+        }
+    ),
+    verify_email=extend_schema(
+        summary="Verify Email Address",
+        description="Verify the user's email address using the OTP sent to their email.",
+        request=VerifyEmailSerializer,
+        responses={
+            status.HTTP_200_OK: None,
+            status.HTTP_400_BAD_REQUEST: None,
+            status.HTTP_404_NOT_FOUND: None,
+        }
+    )
+)
 class EmailVerificationViewSet(viewsets.ViewSet):
     __ID_FOR = 'email-verification'
     def __ratelimit_key(group, self: 'EmailVerificationViewSet'):
@@ -321,13 +440,6 @@ class EmailVerificationViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['POST'])
     @ratelimit(key=__ratelimit_key, rate='3/10m')
-    @swagger_auto_schema(
-        request_body=SendOTPSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_404_NOT_FOUND: None,
-        }
-    )
     def send_otp(self, request: Request):
         """
         Send an OTP to the user's email address.
@@ -375,13 +487,6 @@ class EmailVerificationViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['POST'])
     @ratelimit(key=__ratelimit_key, rate='5/10m')
-    @swagger_auto_schema(
-        request_body=VerifyOTPSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_400_BAD_REQUEST: None,
-        }
-    )
     def verify_otp(self, request):
         """
         Verify the OTP sent to the user's email address.
@@ -403,14 +508,6 @@ class EmailVerificationViewSet(viewsets.ViewSet):
         return Response({'detail': 'OTP verified'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['POST'])
-    @swagger_auto_schema(
-        request_body=VerifyEmailSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_400_BAD_REQUEST: None,
-            status.HTTP_404_NOT_FOUND: None,
-        }
-    )
     def verify_email(self, request):
         """
         Verify user's email address.
@@ -437,14 +534,6 @@ class EmailVerificationViewSet(viewsets.ViewSet):
         return Response({'detail': 'Email verified successfully'}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['POST'])
-    @swagger_auto_schema(
-        request_body=ResetPasswordWithTokenSerializer,
-        responses={
-            status.HTTP_200_OK: None,
-            status.HTTP_400_BAD_REQUEST: None,
-            status.HTTP_404_NOT_FOUND: None,
-        }
-    )
     def verify_email_with_token(self, request):
         """
         Verify user's email using a JWT token.

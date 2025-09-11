@@ -1,5 +1,17 @@
 from rest_framework import serializers
-from .models import User, PhoneNumber, StakeholderAccount, GovIssuedIdentity
+from .models import StakeholderAccount, User, PhoneNumber
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a new user.
+    It includes fields for email, password, and phone number.
+    """
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'password']
+        extra_kwargs = {'password': {'write_only': True}}
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -9,11 +21,12 @@ class UserSerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(
         source='get_phone_number', read_only=True, allow_null=True)
     is_stakeholder = serializers.BooleanField(read_only=True)
+    is_stakeholder_verified = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
         fields = ['id', 'full_name', 'email', 'is_active', 'date_joined',
-                  'last_login', 'has_google_account', 'has_phone_number', 'phone_number', 'is_stakeholder']
+                  'last_login', 'has_google_account', 'has_phone_number', 'phone_number', 'is_stakeholder', 'is_stakeholder_verified']
         read_only_fields = ['id', 'date_joined', 'last_login', 'is_active']
 
     def get_phone_number(self, obj):
@@ -34,6 +47,8 @@ class PhoneNumberSerializer(serializers.ModelSerializer):
 
 class UserMeSerializer(serializers.ModelSerializer):
     phone_number = PhoneNumberSerializer(required=False, read_only=True)
+    is_stakeholder = serializers.BooleanField(read_only=True)
+    is_stakeholder_verified = serializers.BooleanField(read_only=True)
     class Meta:
         model = User
         exclude = ['password', 'is_superuser', 'is_staff', 'firebase_uid']
@@ -74,3 +89,13 @@ class VerifyEmailSerializer(serializers.Serializer):
 
 class VerifyEmailWithTokenSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+
+class BecomeAStakeholderSerializer(serializers.ModelSerializer):
+    """Serializer for becoming a stakeholder.
+It includes fields for identity type, number, image, and stakeholder photo.
+    """
+    class Meta:
+        model = StakeholderAccount
+        exclude = ['user', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_verified', 'created_at', 'updated_at']

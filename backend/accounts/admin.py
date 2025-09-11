@@ -2,7 +2,7 @@ import nested_admin
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import OTPRequest, User, PhoneNumber, StakeholderAccount, GovIssuedIdentity
+from .models import OTPRequest, User, PhoneNumber, StakeholderAccount
 
 
 admin.site.site_header = "De-Duke Garden Care"
@@ -16,17 +16,10 @@ class PhoneNumberInline(nested_admin.NestedTabularInline):
     max_num = 1
 
 
-class GovIssuedIdentityInline(nested_admin.NestedTabularInline):
-    model = GovIssuedIdentity
-    extra = 0
-    max_num = 1
-
-
-class StakeholderAccountInline(nested_admin.NestedTabularInline):
+class StakeholderAccountInline(nested_admin.NestedStackedInline):
     model = StakeholderAccount
     extra = 0
     max_num = 1
-    inlines = [GovIssuedIdentityInline]
 
 
 @admin.register(User)
