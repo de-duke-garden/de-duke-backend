@@ -53,7 +53,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      # - "443:443"
+      - "443:443"
       - "8080:8080"  # Traefik dashboard (remove in production)
     volumes:
       - ./traefik/staging/traefik.yml:/etc/traefik/traefik.yml:ro
