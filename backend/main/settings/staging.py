@@ -4,7 +4,7 @@ from main.settings.dev import *
 DEBUG = True
 
 # ALLOWED_HOSTS = ["de-duke.com", "www.de-duke.com"]
-ALLOWED_HOSTS = ["de-duke.com", "www.de-duke.com", "*.compute.amazonaws.com"]
+ALLOWED_HOSTS = ["de-duke.com", "www.de-duke.com", ".compute.amazonaws.com"]
 
 DATABASES = {
     'default': {
@@ -25,7 +25,7 @@ DATABASES = {
 CORS_ALLOWED_ORIGINS = [
     "http://de-duke.com",
     "http://www.de-duke.com",
-    "http://*.compute.amazonaws.com",
+    "http://ec2-35-179-76-99.eu-west-2.compute.amazonaws.com",
 ]
 
 CSRF_COOKIE_SECURE = True
