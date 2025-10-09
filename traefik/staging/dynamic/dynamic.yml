@@ -5,10 +5,16 @@ http:
       entryPoints:
         - web
       service: backend
-      rule: Host(`de-duke.com`) || Host(`www.de-duke.com`) || Host(`ec2-35-179-76-99.eu-west-2.compute.amazonaws.com`)
+      rule: Host(`de-duke.com`) || Host(`www.de-duke.com`)
       # rule: Host(`backend.vanguardhosting.local`)
       tls:
         certResolver: letsencrypt
+    
+    backend-insecure:
+      entryPoints:
+        - web
+      service: backend
+      rule: Host(`ec2-35-179-76-99.eu-west-2.compute.amazonaws.com`)
     # frontend:
     #   entryPoints:
     #     - web
