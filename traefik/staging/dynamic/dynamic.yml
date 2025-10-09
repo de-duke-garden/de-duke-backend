@@ -1,25 +1,36 @@
 http:
-  # Add the router
+  # Add the router for HTTPS
   routers:
-    backend:
+    backend-secure:
+      entryPoints:
+        - websecure
+      service: backend
+      rule: Host(`de-duke.com`) || Host(`www.de-duke.com`)
+      tls:
+        certResolver: letsencrypt
+    
+    # HTTP router with redirect to HTTPS
+    backend-redirect:
       entryPoints:
         - web
       service: backend
       rule: Host(`de-duke.com`) || Host(`www.de-duke.com`)
-      # rule: Host(`backend.vanguardhosting.local`)
-      tls:
-        certResolver: letsencrypt
+      middlewares:
+        - redirect-to-https
     
+    # Separate router for EC2 hostname without SSL
     backend-insecure:
       entryPoints:
         - web
       service: backend
-      rule: Host(`ec2-35-179-76-99.eu-west-2.compute.amazonaws.com`)
-    # frontend:
-    #   entryPoints:
-    #     - web
-    #   service: frontend
-    #   rule: Host(`vanguardhosting.local`)
+      rule: Host(`ec2-13-42-130-253.eu-west-2.compute.amazonaws.com`)
+
+  # Add middlewares
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
 
   # Add the service
   services:
@@ -28,8 +39,3 @@ http:
         servers:
           - url: http://backend:8000
         passHostHeader: false
-    # frontend:
-    #   loadBalancer:
-    #     servers:
-    #       - url: http://frontend:3000
-    #     passHostHeader: false
