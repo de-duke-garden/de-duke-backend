@@ -13,14 +13,14 @@ providers:
     directory: /etc/traefik/dynamic
     watch: true
 
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: khidirahmad05@gmail.com
-      storage: /etc/letsencrypt/acme.json
-      httpChallenge:
-        # used during the challenge
-        entryPoint: web
+# certificatesResolvers:
+#   letsencrypt:
+#     acme:
+#       email: khidirahmad05@gmail.com
+#       storage: /etc/letsencrypt/acme.json
+#       httpChallenge:
+#         # used during the challenge
+#         entryPoint: web
 
 log:
   level: INFO
