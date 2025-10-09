@@ -116,7 +116,7 @@ class BookmarkedPropertyViewSet(
             return Response({"detail": "Property not bookmarked by user."}, status=400)
 
 
-class HostApartmentPropertyViewSet(
+class HostShortletPropertyViewSet(
     viewsets.ModelViewSet
 ):
     """
@@ -124,21 +124,21 @@ class HostApartmentPropertyViewSet(
     This viewset allows users to view and manage properties they host.
     """
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.ApartmentPropertySerializer
+    serializer_class = serializers.ShortletPropertySerializer
     parser_classes = [parsers.MultiPartParser]
 
     def get_queryset(self):
         """Returns a queryset of properties hosted by the authenticated user."""
-        if self.request.user.is_stakeholder():
-            return models.ApartmentProperty.objects.filter(
-                listed_by=self.request.user.stakeholder_account,
+        if self.request.user.is_host():
+            return models.ShortletProperty.objects.filter(
+                listed_by=self.request.user.host_account,
                 is_deleted=False,
             )
         return models.Property.objects.none()
 
     def perform_destroy(self, instance):
         """Handles the deletion of a hosted property."""
-        if instance.listed_by == self.request.user.stakeholder_account:
+        if instance.listed_by == self.request.user.host_account:
             instance.is_deleted = True
             instance.save()
         else:
@@ -149,26 +149,54 @@ class HostApartmentPropertyViewSet(
         images = {} # files that starts with 'image__' in data list
         # Create a mutable copy of request.data
         mutable_data = request.data.copy()
+        print("Request data:", mutable_data)
         for key, value in request.data.items():
+            # if key.startswith('image__'):
+            #     print(f"Processing image: {key}", value, type(value))
+            #     if value and isinstance(value, InMemoryUploadedFile):
+            #         _, lookup = key.split('__')
+            #         print(f"Adding image: {key}")
+            #         images[lookup] = value
+            #     mutable_data.pop(key, None) # Remove the image data from data
             if key.startswith('image__'):
                 print(f"Processing image: {key}", value, type(value))
-                if value and isinstance(value, InMemoryUploadedFile):
-                    _, lookup = key.split('__')
+                if value and value != 'null':
+                    _, lookup, field = key.split('__')
                     print(f"Adding image: {key}")
-                    images[lookup] = value
-                mutable_data.pop(key, None) # Remove the image data from data
+                    if lookup not in images:
+                        images[lookup] = {}
+                    val = value
+                    if value == 'true':
+                        val = True
+                    elif value == 'false':
+                        val = False
+                    images[lookup][field] = val
+                mutable_data.pop(key, None)
         # Save the property first
+        print("Mutable data for property creation:", mutable_data)
         serializer = self.get_serializer(data=mutable_data)
         serializer.is_valid(raise_exception=True)
-        # Pass the listed_by field from the request user's stakeholder account
-        property_instance = serializer.save(listed_by=self.request.user.stakeholder_account)
+        print("Validated data:", serializer.validated_data)
+        # Pass the listed_by field from the request user's host account
+        property_instance = serializer.save(listed_by=self.request.user.host_account)
+        print("Created property:", property_instance)
         # Save the images
-        for lookup, image in images.items():
+        # for lookup, image in images.items():
+        #     models.PropertyImage.objects.create(
+        #         property=property_instance, 
+        #         image=image,
+        #         is_primary=(lookup == '0')  # Set first image as primary
+        #     )
+        for lookup, image_data in images.items():
+            print(f"Image data for {lookup}: {image_data}")
+            if image_data.get('is_primary') == True:
+                # If this image is marked as primary, unset other primary images
+                models.PropertyImage.objects.filter(
+                    property=property_instance,
+                    is_primary=True
+                ).update(is_primary=False)
             models.PropertyImage.objects.create(
-                property=property_instance, 
-                image=image,
-                is_primary=(lookup == '0')  # Set first image as primary
-            )
+                property=property_instance, **image_data,)
         # Return the serialized property instance
         return Response(
             self.get_serializer(property_instance).data,
@@ -180,25 +208,48 @@ class HostApartmentPropertyViewSet(
         # Create a mutable copy of request.data
         mutable_data = request.data.copy()
         for key, value in request.data.items():
+            # if key.startswith('image__'):
+            #     print(f"Processing image: {key}", value, type(value))
+            #     if value and isinstance(value, InMemoryUploadedFile):
+            #         _, lookup = key.split('__')
+            #         print(f"Adding image: {key}")
+            #         images[lookup] = value
+            #     mutable_data.pop(key, None)  # Remove the image data from request data
             if key.startswith('image__'):
                 print(f"Processing image: {key}", value, type(value))
-                if value and isinstance(value, InMemoryUploadedFile):
-                    _, lookup = key.split('__')
+                if value and value != 'null':
+                    _, lookup, field = key.split('__')
                     print(f"Adding image: {key}")
-                    images[lookup] = value
-                mutable_data.pop(key, None)  # Remove the image data from request data
+                    if lookup not in images:
+                        images[lookup] = {}
+                    val = value
+                    if value == 'true':
+                        val = True
+                    elif value == 'false':
+                        val = False
+                    images[lookup][field] = val
+                mutable_data.pop(key, None)
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data)
         serializer.is_valid(raise_exception=True)
         property_instance = serializer.save()
         # Save the images
-        for lookup, image in images.items():
+        # for lookup, image in images.items():
+        #     models.PropertyImage.objects.create(
+        #         property=property_instance,
+        #         image=image,
+        #         is_primary=(lookup == '0')  # Set first image as primary
+        #     )
+        for lookup, image_data in images.items():
+            if image_data.get('is_primary') == True:
+                # If this image is marked as primary, unset other primary images
+                models.PropertyImage.objects.filter(
+                    property=property_instance,
+                    is_primary=True
+                ).update(is_primary=False)
             models.PropertyImage.objects.create(
-                property=property_instance,
-                image=image,
-                is_primary=(lookup == '0')  # Set first image as primary
-            )
+                property=property_instance, **image_data,)
         # Return the serialized property instance
         return Response(
             self.get_serializer(property_instance).data,
@@ -210,25 +261,49 @@ class HostApartmentPropertyViewSet(
         # Create a mutable copy of request.data
         mutable_data = request.data.copy()
         for key, value in request.data.items():
+            # if key.startswith('image__'):
+            #     print(f"Processing image: {key}", value, type(value))
+            #     if value and isinstance(value, InMemoryUploadedFile):
+            #         _, lookup = key.split('__')
+            #         print(f"Adding image: {key}")
+            #         images[lookup] = value
+            #     mutable_data.pop(key, None)  # Remove the image data from data
             if key.startswith('image__'):
                 print(f"Processing image: {key}", value, type(value))
-                if value and isinstance(value, InMemoryUploadedFile):
-                    _, lookup = key.split('__')
+                if value and value != 'null':
+                    _, lookup, field = key.split('__')
                     print(f"Adding image: {key}")
-                    images[lookup] = value
-                mutable_data.pop(key, None)  # Remove the image data from data
+                    if lookup not in images:
+                        images[lookup] = {}
+                    val = value
+                    if value == 'true':
+                        val = True
+                    elif value == 'false':
+                        val = False
+                    images[lookup][field] = val
+                mutable_data.pop(key, None)
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data, partial=True)
         serializer.is_valid(raise_exception=True)
         property_instance = serializer.save()
         # Save the images
-        for lookup, image in images.items():
+        # for lookup, image in images.items():
+        #     models.PropertyImage.objects.create(
+        #         property=property_instance,
+        #         image=image,
+        #         is_primary=(lookup == '0')  # Set first image as primary
+        #     )
+        for lookup, image_data in images.items():
+            print(f"Image data for {lookup}: {image_data}")
+            if image_data.get('is_primary') == True:
+                # If this image is marked as primary, unset other primary images
+                models.PropertyImage.objects.filter(
+                    property=property_instance,
+                    is_primary=True
+                ).update(is_primary=False)
             models.PropertyImage.objects.create(
-                property=property_instance,
-                image=image,
-                is_primary=(lookup == '0')  # Set first image as primary
-            )
+                property=property_instance, **image_data,)
         # Return the serialized property instance
         return Response(
             self.get_serializer(property_instance).data,
@@ -236,29 +311,29 @@ class HostApartmentPropertyViewSet(
         )
 
 
-class HostHomePropertyViewSet(
+class HostCommercialPropertyViewSet(
     viewsets.ModelViewSet
 ):
     """
-    A viewset for managing home properties hosted by a user.
-    This viewset allows users to view and manage home properties they host.
+    A viewset for managing commercial properties hosted by a user.
+    This viewset allows users to view and manage commercial properties they host.
     """
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.HomePropertySerializer
+    serializer_class = serializers.CommercialPropertySerializer
     parser_classes = [parsers.MultiPartParser]
 
     def get_queryset(self):
-        """Returns a queryset of home properties hosted by the authenticated user."""
-        if self.request.user.is_stakeholder():
-            return models.HomeProperty.objects.filter(
-                listed_by=self.request.user.stakeholder_account,
+        """Returns a queryset of commercial properties hosted by the authenticated user."""
+        if self.request.user.is_host():
+            return models.CommercialProperty.objects.filter(
+                listed_by=self.request.user.host_account,
                 is_deleted=False,
             )
         return models.Property.objects.none()
 
     def perform_destroy(self, instance):
-        """Handles the deletion of a hosted home property."""
-        if instance.listed_by == self.request.user.stakeholder_account:
+        """Handles the deletion of a hosted commercial property."""
+        if instance.listed_by == self.request.user.host_account:
             instance.is_deleted = True
             instance.save()
         else:
@@ -267,38 +342,52 @@ class HostHomePropertyViewSet(
     
     def create(self, request, *args, **kwargs):
         images = {} # files that starts with 'image__' in data list
-        bedrooms = {}
+        rooms = {}
         # Create a mutable copy of request.data
         mutable_data = request.data.copy()
         for key, value in request.data.items():
             if key.startswith('image__'):
                 print(f"Processing image: {key}", value, type(value))
-                if value and isinstance(value, InMemoryUploadedFile):
-                    _, lookup = key.split('__')
-                    print(f"Adding image: {key}")
-                    images[lookup] = value
-                mutable_data.pop(key, None)
-            elif key.startswith('bedroom__'):
                 if value and value != 'null':
                     _, lookup, field = key.split('__')
-                    if lookup not in bedrooms:
-                        bedrooms[lookup] = {}
-                    bedrooms[lookup][field] = value
-                mutable_data.pop(key, None)  # Remove the bedroom data from request data
+                    print(f"Adding image: {key}")
+                    if lookup not in images:
+                        images[lookup] = {}
+                    val = value
+                    if value == 'true':
+                        val = True
+                    elif value == 'false':
+                        val = False
+                    images[lookup][field] = val
+                mutable_data.pop(key, None)
+            elif key.startswith('room__'):
+                if value and value != 'null':
+                    _, lookup, field = key.split('__')
+                    if lookup not in rooms:
+                        rooms[lookup] = {}
+                    rooms[lookup][field] = value
+                mutable_data.pop(key, None)  # Remove the room data from request data
         # Save the property first
+        print("Mutable data for property creation:", mutable_data)
         serializer = self.get_serializer(data=mutable_data)
         serializer.is_valid(raise_exception=True)
-        # Pass the listed_by field from the request user's stakeholder account
-        property_instance = serializer.save(listed_by=self.request.user.stakeholder_account)
+        # Pass the listed_by field from the request user's host account
+        property_instance = serializer.save(listed_by=self.request.user.host_account)
         # Save the images
-        for lookup, image in images.items():
+        for lookup, image_data in images.items():
+            if image_data.get('is_primary') == True:
+                # If this image is marked as primary, unset other primary images
+                models.PropertyImage.objects.filter(
+                    property=property_instance,
+                    is_primary=True
+                ).update(is_primary=False)
             models.PropertyImage.objects.create(
-                property=property_instance, image=image, is_primary= (lookup == '0'))
-        # Save the bedrooms
-        for lookup, bedroom_data in bedrooms.items():
-            models.HomePropertyBedroom.objects.create(
-                home_property=property_instance,
-                **bedroom_data
+                property=property_instance, **image_data,)
+        # Save the rooms
+        for lookup, room_data in rooms.items():
+            models.CommercialPropertyRoom.objects.create(
+                property=property_instance,
+                **room_data
             )
         # Return the serialized property instance
         return Response(
@@ -308,52 +397,75 @@ class HostHomePropertyViewSet(
     
     def update(self, request, *args, **kwargs):
         images = {}  # files that starts with 'image__' in data list
-        bedrooms = {}
+        rooms = {}
         # Create a mutable copy of request.data
         mutable_data = request.data.copy()
         for key, value in request.data.items():
+            # if key.startswith('image__'):
+            #     print(f"Processing image: {key}", value, type(value))
+            #     if value and isinstance(value, InMemoryUploadedFile):
+            #         _, lookup = key.split('__')
+            #         print(f"Adding image: {key}")
+            #         images[lookup] = value
+            #     mutable_data.pop(key, None)  # Remove the image data from data
             if key.startswith('image__'):
                 print(f"Processing image: {key}", value, type(value))
-                if value and isinstance(value, InMemoryUploadedFile):
-                    _, lookup = key.split('__')
-                    print(f"Adding image: {key}")
-                    images[lookup] = value
-                mutable_data.pop(key, None)  # Remove the image data from data
-            elif key.startswith('bedroom__'):
                 if value and value != 'null':
                     _, lookup, field = key.split('__')
-                    if lookup not in bedrooms:
-                        bedrooms[lookup] = {}
-                    bedrooms[lookup][field] = value
-                mutable_data.pop(key, None)  # Remove the bedroom data from request data
+                    print(f"Adding image: {key}")
+                    if lookup not in images:
+                        images[lookup] = {}
+                    val = value
+                    if value == 'true':
+                        val = True
+                    elif value == 'false':
+                        val = False
+                    images[lookup][field] = val
+                mutable_data.pop(key, None)
+            elif key.startswith('room__'):
+                if value and value != 'null':
+                    _, lookup, field = key.split('__')
+                    if lookup not in rooms:
+                        rooms[lookup] = {}
+                    rooms[lookup][field] = value
+                mutable_data.pop(key, None)  # Remove the room data from request data
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data)
         serializer.is_valid(raise_exception=True)
         property_instance = serializer.save()
         # Save the images
-        for lookup, image in images.items():
+        # for lookup, image in images.items():
+        #     models.PropertyImage.objects.create(
+        #         property=property_instance, 
+        #         image=image,
+        #         is_primary=(lookup == '0')  # Set first image as primary
+        #     )
+        for lookup, image_data in images.items():
+            if image_data.get('is_primary') == True:
+                # If this image is marked as primary, unset other primary images
+                models.PropertyImage.objects.filter(
+                    property=property_instance,
+                    is_primary=True
+                ).update(is_primary=False)
             models.PropertyImage.objects.create(
-                property=property_instance, 
-                image=image,
-                is_primary=(lookup == '0')  # Set first image as primary
-            )
-        # Save the bedrooms
-        for lookup, bedroom_data in bedrooms.items():
-            if bedroom_data['level'] and bedroom_data['dimention_width'] and bedroom_data['dimention_length']:
-                if bedroom_data.get('id'):
-                    # Update existing bedroom
-                    models.HomePropertyBedroom.objects.filter(id=bedroom_data['id']).update(
-                        home_property=property_instance,
-                        **bedroom_data
+                property=property_instance, **image_data,)
+        # Save the rooms
+        for lookup, room_data in rooms.items():
+            if room_data['level'] and room_data['dimention_width'] and room_data['dimention_length']:
+                if room_data.get('id'):
+                    # Update existing room
+                    models.CommercialPropertyRoom.objects.filter(id=room_data['id']).update(
+                        property=property_instance,
+                        **room_data
                     )
                 else:
-                    # Create new bedroom
-                    if 'id' in bedroom_data:
-                        del bedroom_data['id']  # Remove id if present to avoid conflicts
-                    models.HomePropertyBedroom.objects.create(
-                        home_property=property_instance,
-                        **bedroom_data
+                    # Create new room
+                    if 'id' in room_data:
+                        del room_data['id']  # Remove id if present to avoid conflicts
+                    models.CommercialPropertyRoom.objects.create(
+                        property=property_instance,
+                        **room_data
                     )
         # Return the serialized property instance
         return Response(
@@ -363,53 +475,76 @@ class HostHomePropertyViewSet(
     
     def partial_update(self, request, *args, **kwargs):
         images = {}  # files that starts with 'image__' in data list
-        bedrooms = {}
+        rooms = {}
         # Create a mutable copy of request.data
         mutable_data = request.data.copy()
         print("Request data:", mutable_data)
         for key, value in request.data.items():
+            # if key.startswith('image__'):
+            #     print(f"Processing image: {key}", value, type(value))
+            #     if value and isinstance(value, InMemoryUploadedFile):
+            #         _, lookup = key.split('__')
+            #         print(f"Adding image: {key}")
+            #         images[lookup] = value
+            #     mutable_data.pop(key, None)  # Remove the image data from request data
             if key.startswith('image__'):
                 print(f"Processing image: {key}", value, type(value))
-                if value and isinstance(value, InMemoryUploadedFile):
-                    _, lookup = key.split('__')
-                    print(f"Adding image: {key}")
-                    images[lookup] = value
-                mutable_data.pop(key, None)  # Remove the image data from request data
-            elif key.startswith('bedroom__'):
                 if value and value != 'null':
                     _, lookup, field = key.split('__')
-                    if lookup not in bedrooms:
-                        bedrooms[lookup] = {}
-                    bedrooms[lookup][field] = value
-                mutable_data.pop(key, None)  # Remove the bedroom data from request data
+                    print(f"Adding image: {key}")
+                    if lookup not in images:
+                        images[lookup] = {}
+                    val = value
+                    if value == 'true':
+                        val = True
+                    elif value == 'false':
+                        val = False
+                    images[lookup][field] = val
+                mutable_data.pop(key, None)
+            elif key.startswith('room__'):
+                if value and value != 'null':
+                    _, lookup, field = key.split('__')
+                    if lookup not in rooms:
+                        rooms[lookup] = {}
+                    rooms[lookup][field] = value
+                mutable_data.pop(key, None)  # Remove the room data from request data
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data, partial=True)
         serializer.is_valid(raise_exception=True)
         property_instance = serializer.save()
         # Save the images
-        for lookup, image in images.items():
+        # for lookup, image in images.items():
+        #     models.PropertyImage.objects.create(
+        #         property=property_instance,
+        #         image=image,
+        #         is_primary=(lookup == '0')  # Set first image as primary
+        #     )
+        for lookup, image_data in images.items():
+            if image_data.get('is_primary') == True:
+                # If this image is marked as primary, unset other primary images
+                models.PropertyImage.objects.filter(
+                    property=property_instance,
+                    is_primary=True
+                ).update(is_primary=False)
             models.PropertyImage.objects.create(
-                property=property_instance,
-                image=image,
-                is_primary=(lookup == '0')  # Set first image as primary
-            )
-        # Save the bedrooms
-        for lookup, bedroom_data in bedrooms.items():
-            if bedroom_data['level'] and bedroom_data['dimention_width'] and bedroom_data['dimention_length']:
-                if bedroom_data.get('id'):
-                    # Update existing bedroom
-                    models.HomePropertyBedroom.objects.filter(id=bedroom_data['id']).update(
-                        home_property=property_instance,
-                        **bedroom_data
+                property=property_instance, **image_data,)
+        # Save the rooms
+        for lookup, room_data in rooms.items():
+            if room_data['level'] and room_data['dimention_width'] and room_data['dimention_length']:
+                if room_data.get('id'):
+                    # Update existing room
+                    models.CommercialPropertyRoom.objects.filter(id=room_data['id']).update(
+                        property=property_instance,
+                        **room_data
                     )
                 else:
-                    # Create new bedroom
-                    if 'id' in bedroom_data:
-                        del bedroom_data['id']  # Remove id if present to avoid conflicts
-                    models.HomePropertyBedroom.objects.create(
-                        home_property=property_instance,
-                        **bedroom_data
+                    # Create new room
+                    if 'id' in room_data:
+                        del room_data['id']  # Remove id if present to avoid conflicts
+                    models.CommercialPropertyRoom.objects.create(
+                        property=property_instance,
+                        **room_data
                     )
         # Return the serialized property instance
         return Response(
@@ -434,33 +569,33 @@ class HostPropertyImageViewSet(
 
     def get_queryset(self):
         """Returns a queryset of images for properties hosted by the authenticated user."""
-        if self.request.user.is_stakeholder():
+        if self.request.user.is_host():
             return models.PropertyImage.objects.filter(
-                property__listed_by=self.request.user.stakeholder_account,
+                property__listed_by=self.request.user.host_account,
             )
         return models.PropertyImage.objects.none()
 
 
-class HostHomePropertyBedroomViewSet(
+class HostCommercialPropertyRoomViewSet(
     # viewsets.mixins.CreateModelMixin,
     viewsets.mixins.UpdateModelMixin,
     viewsets.mixins.DestroyModelMixin,
     viewsets.GenericViewSet
 ):
     """
-    A viewset for managing bedrooms of home properties hosted by a user.
-    This viewset allows users to upload and manage bedrooms for their home properties.
+    A viewset for managing rooms of commercial properties hosted by a user.
+    This viewset allows users to upload and manage rooms for their commercial properties.
     """
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.HomePropertyBedroomSerializer
+    serializer_class = serializers.CommercialPropertyRoomSerializer
 
     def get_queryset(self):
-        """Returns a queryset of bedrooms for home properties hosted by the authenticated user."""
-        if self.request.user.is_stakeholder():
-            return models.HomePropertyBedroom.objects.filter(
-                home_property__listed_by=self.request.user.stakeholder_account,
+        """Returns a queryset of rooms for commercial properties hosted by the authenticated user."""
+        if self.request.user.is_host():
+            return models.CommercialPropertyRoom.objects.filter(
+                property__listed_by=self.request.user.host_account,
             )
-        return models.HomePropertyBedroom.objects.none()
+        return models.CommercialPropertyRoom.objects.none()
 
 
 class PropertyFieldChoicesView(
@@ -483,16 +618,16 @@ class PropertyFieldChoicesView(
         choices = {
             'LEVEL_CHOICES': models.LEVEL_CHOICES,
             'PROPERTY_TYPE_CHOICES': models.Property.PROPERTY_TYPE_CHOICES,
-            'LISTING_TYPE_CHOICES': models.HomeProperty.LISTING_TYPE_CHOICES,
-            'PARKING_FEATURE_CHOICES': models.HomeProperty.PARKING_FEATURE_CHOICES,
-            # HOME_TYPE_CHOICES
-            'HOME_TYPE_CHOICES': models.HomeProperty.HOME_TYPE_CHOICES,
+            'LISTING_TYPE_CHOICES': models.CommercialProperty.LISTING_TYPE_CHOICES,
+            'PARKING_FEATURE_CHOICES': models.CommercialProperty.PARKING_FEATURE_CHOICES,
+            # COMMERCIAL_TYPE_CHOICES
+            'COMMERCIAL_TYPE_CHOICES': models.CommercialProperty.COMMERCIAL_TYPE_CHOICES,
             # ARCHITECTURAL_STYLE_CHOICES
-            'ARCHITECTURAL_STYLE_CHOICES': models.HomeProperty.ARCHITECTURAL_STYLE_CHOICES,
+            'ARCHITECTURAL_STYLE_CHOICES': models.CommercialProperty.ARCHITECTURAL_STYLE_CHOICES,
             # PROPERTY_CONDITION_CHOICES
-            'PROPERTY_CONDITION_CHOICES': models.HomeProperty.PROPERTY_CONDITION_CHOICES,
-            # APARTMENT_TYPE_CHOICES
-            'APARTMENT_TYPE_CHOICES': models.ApartmentProperty.APARTMENT_TYPE_CHOICES,
+            'PROPERTY_CONDITION_CHOICES': models.CommercialProperty.PROPERTY_CONDITION_CHOICES,
+            # SHORTLET_TYPE_CHOICES
+            'SHORTLET_TYPE_CHOICES': models.ShortletProperty.SHORTLET_TYPE_CHOICES,
         }
         return Response(choices, status=200)
 

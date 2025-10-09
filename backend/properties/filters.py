@@ -8,8 +8,8 @@ class PropertyFilter(filters.FilterSet):
     Custom filter set for properties.
     This filter set allows filtering properties based on various criteria.
     """
-    homeproperty__total_bedrooms = filters.RangeFilter(method='filter_bedrooms')
-    homeproperty__total_bathrooms = filters.RangeFilter(method='filter_bathrooms')
+    commercialproperty__total_rooms = filters.RangeFilter(method='filter_rooms')
+    commercialproperty__total_bathrooms = filters.RangeFilter(method='filter_bathrooms')
     search = filters.CharFilter(
         field_name='search',
         method='filter_search',
@@ -23,43 +23,36 @@ class PropertyFilter(filters.FilterSet):
             'property_type': ['exact'],
             'created_at': ['gte', 'lte'],
             'updated_at': ['gte', 'lte'],
-            'homeproperty__price': ['gte', 'lte'],
-            'homeproperty__home_type': ['exact', 'in'],
-            'homeproperty__list_type': ['exact', 'in'],
-            'homeproperty__architectural_style': ['exact', 'in'],
-            'homeproperty__property_condition': ['exact', 'in'],
-            'apartmentproperty__price': ['gte', 'lte'],
-            'apartmentproperty__apartment_type': ['exact', 'in'],
+            'commercialproperty__price': ['gte', 'lte'],
+            'commercialproperty__commercial_type': ['exact', 'in'],
+            'commercialproperty__listing_type': ['exact', 'in'],
+            'commercialproperty__architectural_style': ['exact', 'in'],
+            'commercialproperty__property_condition': ['exact', 'in'],
+            'shortletproperty__price': ['gte', 'lte'],
+            'shortletproperty__shortlet_type': ['exact', 'in'],
         }
     
-    def filter_bedrooms(self, queryset, name, value):
+    def filter_rooms(self, queryset, name, value):
         """
-        Custom filter for total bedrooms.
-        Filters properties based on the range of total bedrooms count.
+        Custom filter for commercial properties total rooms.
+        Filters properties based on the range of total rooms count.
         """
-        # Annotate with bedroom count
+        # Annotate with room count
         queryset = queryset.annotate(
-            bedroom_count=Count('homeproperty__bedrooms')
+            room_count=Count('commercialproperty__rooms')
         )
         
         if value.start is not None:
-            queryset = queryset.filter(bedroom_count__gte=value.start)
+            queryset = queryset.filter(room_count__gte=value.start)
         if value.stop is not None:
-            queryset = queryset.filter(bedroom_count__lte=value.stop)
+            queryset = queryset.filter(room_count__lte=value.stop)
         return queryset
     
     def filter_bathrooms(self, queryset, name, value):
         """
         Custom filter for total bathrooms.
-        Filters properties based on the range of total bathrooms (half + full).
+        Filters properties based on the range of total bathrooms.
         """
-        # Only filter if both half and full bathroom fields are not null
-        queryset = queryset.filter(
-            homeproperty__total_half_bathrooms__isnull=False,
-            homeproperty__total_full_bathrooms__isnull=False
-        ).annotate(
-            total_bathrooms=F('homeproperty__total_half_bathrooms') + F('homeproperty__total_full_bathrooms')
-        )
         
         if value.start is not None:
             queryset = queryset.filter(total_bathrooms__gte=value.start)

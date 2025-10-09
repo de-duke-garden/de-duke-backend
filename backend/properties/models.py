@@ -3,12 +3,13 @@ import uuid
 from django.contrib.gis.db.models import PointField
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from accounts.models import StakeholderAccount
+from accounts.models import HostAccount
 import googlemaps
 from django.conf import settings
 import logging
 
 from utilities.helpers import property_image_upload_handler
+from utilities import idx
 
 
 logger = logging.getLogger("django")
@@ -18,32 +19,37 @@ User = get_user_model()
 
 LEVEL_CHOICES = [
     ("ground", "Ground"),
+    ("basement", "Basement"),
+    ("first", "First"),
+    ("second", "Second"),
+    ("third", "Third"),
 ]
 
-# id, address, location, description, special_tags, is_active, is_deleted, last_checked, created_at, updated_at, listed_by_id, listed_by_user_id, verified_id, verified_user_id
 class Property(models.Model):
     """
     Property model class
     """
     PROPERTY_TYPE_CHOICES = [
-        ('home', 'Home'),
-        ('apartment', 'Apartment'),
-        # ('commercial', 'Commercial'),
-        # ('land', 'Land'),
-        # ('other', 'Other'),
+        ('shortlet', 'Shortlet'),
+        ('commercial', 'Commercial'),
     ]
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_property_id,
+        editable=False
+    )
     address = models.TextField(null=False, blank=True, help_text="Address of the property (leave blank for reverse geocoding)")
     location = PointField(geography=True, null=False, blank=False)
     description = models.TextField()    
     # special_tags = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
-    last_checked = models.DateTimeField(blank=True, null=True)
+    last_checked = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    listed_by = models.ForeignKey(StakeholderAccount, related_name="properties", on_delete=models.CASCADE)
-    property_type = models.CharField(max_length=50, blank=True, null=True, choices=PROPERTY_TYPE_CHOICES)
+    listed_by = models.ForeignKey(HostAccount, related_name="properties", on_delete=models.CASCADE)
+    property_type = models.CharField(max_length=50, choices=PROPERTY_TYPE_CHOICES)
 
     class Meta:
         verbose_name = "Property"
@@ -51,7 +57,7 @@ class Property(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Property: {self.address[:100]}..."
+        return f"Property at {self.address[:100]}... by {self.listed_by.user.email if self.listed_by and self.listed_by.user else 'Unknown'}"
     
     def is_banned(self):
         """
@@ -78,14 +84,14 @@ class Property(models.Model):
         """
         Get the price of the property based on its type.
         """
-        if self.property_type == "home":
-            home = getattr(self, 'homeproperty', None)
-            if home:
-                return home.price
-        elif self.property_type == "apartment":
-            apartment = getattr(self, 'apartmentproperty', None)
-            if apartment:
-                return apartment.price
+        if self.property_type == "commercial":
+            commercial = getattr(self, 'commercialproperty', None)
+            if commercial:
+                return commercial.price
+        elif self.property_type == "shortlet":
+            shortlet = getattr(self, 'shortletproperty', None)
+            if shortlet:
+                return shortlet.price
         return None
     
     def title(self):
@@ -98,80 +104,39 @@ class Property(models.Model):
         """
         Generate a subtitle for the property based on its type and key attributes.
         """
-        if self.property_type == "home":
-            home = getattr(self, 'homeproperty', None)
-            if home:
-                subtitle = ""
-                if home.home_type:
-                    subtitle += f"{home.home_type} | "
-                if home.architectural_style:
-                    subtitle += f"{home.architectural_style} | "
-                if home.property_condition:
-                    subtitle += f"{home.property_condition} | "
-                subtitle += f"{home.total_bedrooms()} Bed, {home.total_bathrooms()} Bath property for {home.list_type.lower()}"
-                return subtitle
-        elif self.property_type == "apartment":
-            apartment = getattr(self, 'apartmentproperty', None)
-            if apartment:
-                subtitle = ""
-                if apartment.apartment_type:
-                    subtitle += f"{apartment.apartment_type} | "
-                if apartment.has_dishwasher:
-                    subtitle += f"Dishwasher | "
-                if apartment.has_washer:
-                    subtitle += f"Washer | "
-                if apartment.has_dryer:
-                    subtitle += f"Dryer | "
-                if apartment.has_oven:
-                    subtitle += f"Oven | "
-                if apartment.has_refrigerator:
-                    subtitle += f"Refrigerator | "
-                subtitle += "property for rent"
-                return subtitle
+        if self.property_type == "commercial":
+            commercial = getattr(self, 'commercialproperty', None)
+            if commercial:
+                return commercial.subtitle()
+        elif self.property_type == "shortlet":
+            shortlet = getattr(self, 'shortletproperty', None)
+            if shortlet:
+                return shortlet.subtitle()
         return "Property"
     
-    # def save(self, *args, **kwargs):
-    #     """
-    #     Override the save method to reverse geocode the location into an address
-    #     only if the location has changed.
-    #     """
-    #     def _update_address():
-    #         gmaps = googlemaps.Client(key=settings.GOOGLE_MAP_API_KEY)
-
-    #         # Extract latitude and longitude from the PointField
-    #         latitude = self.location.y
-    #         longitude = self.location.x
-
-    #         try:
-    #             # Perform reverse geocoding
-    #             result = gmaps.reverse_geocode((latitude, longitude))
-    #             if result:
-    #                 # Extract the formatted address from the response
-    #                 self.address = result[0]['formatted_address']
-    #         except Exception as e:
-    #             # Log the error if reverse geocoding fails
-    #             logger.error(f"Error during reverse geocoding: {e}")
-
-    #     # Check if the instance already exists in the database
-    #     if self.pk:
-    #         # Fetch the existing instance from the database
-    #         existing_instance = Property.objects.get(pk=self.pk)
-    #         # Compare the current location with the existing location
-    #         if existing_instance and self.location != existing_instance.location:
-    #             _update_address()
-    #     else:
-    #         # For new instances, always perform reverse geocoding
-    #         if self.location:
-    #             _update_address()
-
-    #     super().save(*args, **kwargs)
+    def primary_image(self):
+        """
+        Get the primary image of the property.
+        """
+        primary_image = self.images.filter(is_primary=True).first()
+        if primary_image:
+            return primary_image.image
+        first_image = self.images.first()
+        if first_image:
+            return first_image.image
+        return None
 
 
-# id, image, ads_id, is_primary
 class PropertyImage(models.Model):
     """
     PropertyImage model class
     """
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_property_image_id,
+        editable=False
+    )
     image = models.ImageField(upload_to=property_image_upload_handler)
     property = models.ForeignKey(Property, related_name="images", on_delete=models.CASCADE)
     is_primary = models.BooleanField(default=False)
@@ -182,29 +147,21 @@ class PropertyImage(models.Model):
         ordering = ["-property__created_at"]
 
     def __str__(self):
-        return f"PropertyImage: {self.property.address[:100]}..."
+        return self.property.__str__()
     
     
 
 
-class HomeProperty(Property):
+class CommercialProperty(Property):
     """
-    HomeProperty model class
+    CommercialProperty model class
     """
     LISTING_TYPE_CHOICES = [
         ('Sale', 'Sale'),
-        ('Rent', 'Rent'),
         ('Lease', 'Lease'),
     ]
-
-    PARKING_FEATURE_CHOICES = [
-        ('Attached', 'Attached'),
-        ('Detached', 'Detached'),
-        ('Carport', 'Carport'),
-        ('Street', 'Street'),
-    ]
-
-    HOME_TYPE_CHOICES = [
+    
+    COMMERCIAL_TYPE_CHOICES = [
         ('Single Family', _('Single Family')),
         ('Multi Family', _('Multi Family')),
         ('Townhouse', _('Townhouse')),
@@ -213,9 +170,14 @@ class HomeProperty(Property):
         ('Modular Home', _('Modular Home')),
         ('Vacation Home', _('Vacation Home')),
         ('Farm', _('Farm')),
-        # ('land', _('Land')),
-        ('Commercial', _('Commercial')),
-        ('Industrial', _('Industrial')),
+        ('land', _('Land')),
+    ]
+
+    PARKING_FEATURE_CHOICES = [
+        ('Attached', 'Attached'),
+        ('Detached', 'Detached'),
+        ('Carport', 'Carport'),
+        ('Street', 'Street'),
     ]
 
     ARCHITECTURAL_STYLE_CHOICES = [
@@ -256,15 +218,16 @@ class HomeProperty(Property):
         ('Bank Owned', _('Bank Owned')),
     ]
 
-    list_type = models.CharField(max_length=10, choices=LISTING_TYPE_CHOICES)
+    listing_type = models.CharField(max_length=10, choices=LISTING_TYPE_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    possession_period_days = models.IntegerField(null=True, blank=True, help_text="Number of days a lessee can take possession after signing the lease")
+    is_sold = models.BooleanField(default=False)
     has_c_of_o = models.BooleanField(default=False)
     has_deed_of_assignment = models.BooleanField(default=False)
     has_power_of_attorney = models.BooleanField(default=False)
     has_survey_plan = models.BooleanField(default=False)
     has_governors_consent = models.BooleanField(default=False)
-    total_half_bathrooms = models.IntegerField(null=True, blank=True)
-    total_full_bathrooms = models.IntegerField(null=True, blank=True)
+    total_bathrooms = models.IntegerField(null=True, blank=True)
     laundry_level = models.CharField(max_length=50, blank=True, null=True, choices=LEVEL_CHOICES)
     has_basement = models.BooleanField(null=True, blank=True)
     has_fireplace = models.BooleanField(null=True, blank=True)
@@ -276,7 +239,7 @@ class HomeProperty(Property):
     parking_feature = models.CharField(max_length=50, blank=True, null=True, choices=PARKING_FEATURE_CHOICES)
     garage_spaces = models.IntegerField(blank=True, null=True)
     parcel_number = models.CharField(max_length=50, blank=True, null=True)
-    home_type = models.CharField(max_length=50, choices=HOME_TYPE_CHOICES)
+    commercial_type = models.CharField(max_length=50, choices=COMMERCIAL_TYPE_CHOICES)
     architectural_style = models.CharField(max_length=50, blank=True, null=True, choices=ARCHITECTURAL_STYLE_CHOICES)
     property_condition = models.CharField(max_length=50, blank=True, null=True,  choices=PROPERTY_CONDITION_CHOICES)
     year_built = models.IntegerField(blank=True, null=True)
@@ -289,11 +252,9 @@ class HomeProperty(Property):
     allow_cat = models.BooleanField(null=True, blank=True)
 
     class Meta:
-        verbose_name = "Home Property"
-        verbose_name_plural = "Home Properties"
+        verbose_name = "Commercial Property"
+        verbose_name_plural = "Commercial Properties"
         ordering = ["-created_at"]
-    def __str__(self):
-        return f"HomeProperty: {self.address[:100]}..."
 
     def finished_area(self):
         """
@@ -304,19 +265,12 @@ class HomeProperty(Property):
         # return None
         return (self.finished_area_above_ground or 0) + (self.finished_area_below_ground or 0)
     
-    def total_bathrooms(self):
+    def total_rooms(self):
         """
-        Calculate the total number of bathrooms.
+        Calculate the total number of rooms in the property.
         """
-        if self.total_half_bathrooms and self.total_full_bathrooms:
-            return self.total_half_bathrooms + self.total_full_bathrooms
-        return None
-    def total_bedrooms(self):
-        """
-        Calculate the total number of bedrooms.
-        """
-        if hasattr(self, 'bedrooms'):
-            return self.bedrooms.count()
+        if hasattr(self, 'rooms'):
+            return self.rooms.count()
         return 0
 
     def is_bookmarked(self, user):
@@ -325,32 +279,60 @@ class HomeProperty(Property):
         """
         return self.bookmarked_properties.filter(user=user).exists()
     
+    def subtitle(self):
+        subtitle = ""
+        if self.commercial_type:
+            subtitle += f"{self.commercial_type} | "
+        if self.architectural_style:
+            subtitle += f"{self.architectural_style} | "
+        if self.property_condition:
+            subtitle += f"{self.property_condition} | "
+        if self.total_bathrooms:
+            subtitle += f"{self.total_bathrooms} Bath | "
+        if self.total_rooms():
+            subtitle += f"{self.total_rooms()} Rooms | "
+        if self.listing_type == "Sale":
+            subtitle += f"For Sale"
+        elif self.listing_type == "Lease":
+            subtitle += f"{self.possession_period_days} days possession period"
+        return subtitle
+    
     def save(self, *args, **kwargs):
         """
         Override the save method to set the property type based on the model.
         """
         if not self.property_type:
-            self.property_type = 'home'
+            self.property_type = 'commercial'
+        if not self.possession_period_days and self.listing_type == 'Lease':
+            # Default possession period for lease is 365 days = 1 year
+            self.possession_period_days = 365
+        if self.listing_type == 'Sale':
+            self.possession_period_days = None
         return super().save(*args, **kwargs)
     
 
-# id, level, dimention_width, dimention_height, home_id
-class HomePropertyBedroom(models.Model):
+class CommercialPropertyRoom(models.Model):
     """
-    HomePropertyBedroom model class
+    CommercialPropertyRoom model class
     """
-    level = models.CharField(max_length=50, blank=True, null=True, choices=LEVEL_CHOICES)
-    dimention_width = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    dimention_length = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    home_property = models.ForeignKey(HomeProperty, related_name="bedrooms", on_delete=models.CASCADE)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_property_room_id,
+        editable=False
+    )
+    level = models.CharField(max_length=50, choices=LEVEL_CHOICES)
+    dimention_width = models.DecimalField(max_digits=10, decimal_places=2)
+    dimention_length = models.DecimalField(max_digits=10, decimal_places=2)
+    property = models.ForeignKey(CommercialProperty, related_name="rooms", on_delete=models.CASCADE)
 
     class Meta:
-        verbose_name = "Home Property Bedroom"
-        verbose_name_plural = "Home Property Bedrooms"
-        ordering = ["-home_property__created_at"]
+        verbose_name = "Home Property Room"
+        verbose_name_plural = "Home Property Rooms"
+        ordering = ["-property__created_at"]
 
     def __str__(self):
-        return f"HomePropertyBedroom - {self.id}: {self.home_property.address[:100]}..."
+        return self.property.__str__()
     
     def area(self):
         """
@@ -361,12 +343,11 @@ class HomePropertyBedroom(models.Model):
         return None
 
 
-# id, price, apartment_type, has_dishwasher, has_washer, has_dryer, has_oven, has_refrigerator, property_id, property_listed_by_id, property_listed_by_user_id, property_verified_id, property_verified_user_id
-class ApartmentProperty(Property):
+class ShortletProperty(Property):
     """
-    ApartmentProperty model class
+    ShortletProperty model class
     """
-    APARTMENT_TYPE_CHOICES = [
+    SHORTLET_TYPE_CHOICES = [
         ('Hostel', 'Hostel'),
         ('Hotel', 'Hotel'),
         ('1 Bedroom', '1 Bedroom'),
@@ -374,12 +355,12 @@ class ApartmentProperty(Property):
         ('3 Bedroom', '3 Bedroom'),
         ('Duplex', 'Duplex'),
         ('Triplex', 'Triplex'),
-        ('Penthouse', 'Penthouse'),
-        ('Loft', 'Loft'),
     ]
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    apartment_type = models.CharField(max_length=50, choices=APARTMENT_TYPE_CHOICES)
+    possession_period_days = models.IntegerField(help_text="Number of days a tenant can take possession after signing the shortlet agreement")
+    shortlet_type = models.CharField(max_length=50, choices=SHORTLET_TYPE_CHOICES)
+    total_bathrooms = models.IntegerField(null=True, blank=True)
     has_dishwasher = models.BooleanField(null=True, blank=True)
     has_washer = models.BooleanField(null=True, blank=True)
     has_dryer = models.BooleanField(null=True, blank=True)
@@ -387,25 +368,39 @@ class ApartmentProperty(Property):
     has_refrigerator = models.BooleanField(null=True, blank=True)
 
     class Meta:
-        verbose_name = "Apartment Property"
-        verbose_name_plural = "Apartment Properties"
+        verbose_name = "Shortlet Property"
+        verbose_name_plural = "Shortlet Properties"
         ordering = ["-created_at"]
-
-    def __str__(self):
-        return f"ApartmentProperty: {self.address[:100]}..."
     
     def is_bookmarked(self, user):
         """
         Check if the property is bookmarked by the given user.
         """
         return self.bookmarked_properties.filter(user=user).exists()
+
+    def subtitle(self):
+        subtitle = ""
+        if self.shortlet_type:
+            subtitle += f"{self.shortlet_type} | "
+        if self.has_dishwasher:
+            subtitle += f"Dishwasher | "
+        if self.has_washer:
+            subtitle += f"Washer | "
+        if self.has_dryer:
+            subtitle += f"Dryer | "
+        if self.has_oven:
+            subtitle += f"Oven | "
+        if self.has_refrigerator:
+            subtitle += f"Refrigerator | "
+        subtitle += f"{self.possession_period_days} days possession period"
+        return subtitle
     
     def save(self, *args, **kwargs):
         """
         Override the save method to set the property type based on the model.
         """
         if not self.property_type:
-            self.property_type = 'apartment'
+            self.property_type = 'shortlet'
         return super().save(*args, **kwargs)
 
 
@@ -413,7 +408,12 @@ class BannedProperty(models.Model):
     """
     BannedProperty model class
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_banned_property_id,
+        editable=False
+    )
     property = models.ForeignKey(Property, related_name="banned_properties", on_delete=models.CASCADE)
     banned_by = models.ForeignKey(User, related_name="banned_properties", on_delete=models.CASCADE)
     reason = models.TextField()
@@ -425,14 +425,19 @@ class BannedProperty(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"BannedProperty: {self.property.address[:100]}..."
+        return self.property.__str__()
 
 
 class VerifiedProperty(models.Model):
     """
     VerifiedProperty model class
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_verified_property_id,
+        editable=False
+    )
     property = models.OneToOneField(Property, related_name="verified", on_delete=models.CASCADE)
     verified_by = models.ForeignKey(User, related_name="verified_properties", on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -443,14 +448,19 @@ class VerifiedProperty(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"VerifiedProperty: {self.property.address[:100]}..."
+        return self.property.__str__()
     
 
 class BookmarkedProperty(models.Model):
     """
     BookmarkedProperty model class
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_bookmarked_property_id,
+        editable=False
+    )
     property = models.ForeignKey(Property, related_name="bookmarked_properties", on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name="bookmarked_properties", on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -461,14 +471,19 @@ class BookmarkedProperty(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"BookmarkedProperty: {self.property.address[:100]}..."
+        return self.property.__str__()
 
 
 class InterestedProperty(models.Model):
     """
     InterestedProperty model class
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_interested_property_id,
+        editable=False
+    )
     property = models.ForeignKey(Property, related_name="interested_properties", on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name="interested_properties", on_delete=models.CASCADE)
     responder = models.ForeignKey(User, related_name="responded_interested_properties", on_delete=models.SET_NULL, null=True, blank=True)
@@ -481,7 +496,7 @@ class InterestedProperty(models.Model):
         ordering = ["-updated_at"]
 
     def __str__(self):
-        return f"Property {self.property.address[:100]} - Interested by {self.user.email}"
+        return self.property.__str__()
     
     def owner(self):
         """
@@ -494,7 +509,12 @@ class InterestedPropertyDialog(models.Model):
     """
     InterestedPropertyDialog model class
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_interested_property_dialogue_id,
+        editable=False
+    )
     interested_property = models.ForeignKey(InterestedProperty, related_name="dialogs", on_delete=models.CASCADE)
     sender = models.ForeignKey(User, related_name="sent_interested_property_dialogs", on_delete=models.CASCADE)
     message = models.TextField()

@@ -11,30 +11,32 @@ from properties.models import Property
 logger = logging.getLogger("django")
 
 
-class PropertyAdminInlineProxy:
-    def has_add_permission(self, request, obj=None):
-        # Allow adding only if the user has a StakeholderAccount
-        if request.user.is_stakeholder():
-            if obj and request.user.stakeholder_account != obj.listed_by:
-                return False
-            return True
-        return False  # Deny add permission if no StakeholderAccount
+# class PropertyAdminInlineProxy:
+#     def has_add_permission(self, request, obj=None):
+#         # Allow adding only if the user has a HostAccount
+#         if request.user.is_host():
+#             if obj and request.user.host_account != obj.listed_by:
+#                 return False
+#             return True
+#         return False  # Deny add permission if no HostAccount
 
-    def get_readonly_fields(self, request, obj=None):
-        # Make all fields readonly if the user does not own the property
-        if obj and (not self.has_add_permission(request, obj) or (
-            self.has_add_permission(
-                request, obj) and request.user.stakeholder_account != obj.listed_by
-        )):
-            return [field.name for field in self.model._meta.fields]
-        return []  # No readonly fields if the user has permission
+#     def get_readonly_fields(self, request, obj=None):
+#         # Make all fields readonly if the user does not own the property
+#         if obj and (not self.has_add_permission(request, obj) or (
+#             self.has_add_permission(
+#                 request, obj) and request.user.host_account != obj.listed_by
+#         )):
+#             return [field.name for field in self.model._meta.fields]
+#         return []  # No readonly fields if the user has permission
 
-    def has_delete_permission(self, request, obj=None):
-        # Allow deleting only if the user owns the property
-        return self.has_add_permission(request, obj)
+#     def has_delete_permission(self, request, obj=None):
+#         # Allow deleting only if the user owns the property
+#         return self.has_add_permission(request, obj)
 
 
-class PropertyImageInline(PropertyAdminInlineProxy, nested_admin.NestedTabularInline):
+class PropertyImageInline(
+    # PropertyAdminInlineProxy, 
+    nested_admin.NestedTabularInline):
     model = models.PropertyImage
     extra = 0
     max_num = 5
@@ -42,10 +44,12 @@ class PropertyImageInline(PropertyAdminInlineProxy, nested_admin.NestedTabularIn
     fields = ('image', 'is_primary')
 
 
-class HomePropertyBedroomInline(PropertyAdminInlineProxy, nested_admin.NestedTabularInline):
-    model = models.HomePropertyBedroom
+class CommercialPropertyRoomInline(
+    # PropertyAdminInlineProxy, 
+    nested_admin.NestedTabularInline):
+    model = models.CommercialPropertyRoom
     extra = 0
-    min_num = 1
+    min_num = 0
     fields = ('level', 'dimention_width', 'dimention_length')
 
 
@@ -63,8 +67,8 @@ class PropertyAdminProxy:
     }
 
     def save_model(self, request, obj, form, change):
-        if not change:
-            obj.listed_by = request.user.stakeholder_account
+        # if not change:
+        #     obj.listed_by = request.user.host_account
         """
         Override the save method to reverse geocode the location into an address
         only if the location has changed.
@@ -89,7 +93,7 @@ class PropertyAdminProxy:
             # Check if the instance already exists in the database
         if change:
             # Fetch the existing instance from the database
-            existing_instance = Property.objects.get(pk=change.pk)
+            existing_instance = Property.objects.get(id=change.id)
             # Compare the current location with the existing location
             if existing_instance and change.location != existing_instance.location:
                 _update_address()
@@ -99,11 +103,11 @@ class PropertyAdminProxy:
                 _update_address()
         return super().save_model(request, obj, form, change)
 
-    def has_add_permission(self, request):
-        # Check if the user has a StakeholderAccount
-        if request.user.is_stakeholder():
-            return True
-        return False  # Deny add permission if no StakeholderAccount
+    # def has_add_permission(self, request):
+    #     # Check if the user has a HostAccount
+    #     if request.user.is_host():
+    #         return True
+    #     return False  # Deny add permission if no HostAccount
 
     def get_exclude(self, request, obj=None):
         exclude = ['property_type']
@@ -111,34 +115,34 @@ class PropertyAdminProxy:
         #     exclude.extend(['address', 'listed_by'])
         return exclude
 
-    def get_readonly_fields(self, request, obj=None):
-        readonly_fields = {'address', 'listed_by'}
+    # def get_readonly_fields(self, request, obj=None):
+    #     readonly_fields = {'address', 'listed_by'}
 
-        if obj and (not self.has_add_permission(request) or (
-            self.has_add_permission(
-                request) and request.user.stakeholder_account != obj.listed_by
-        )):
-            # Gray out all fields except `readable` if the admin is not the owner of the property
-            readable = ['is_active', 'last_checked']
+    #     if obj and (not self.has_add_permission(request) or (
+    #         self.has_add_permission(
+    #             request) and request.user.host_account != obj.listed_by
+    #     )):
+    #         # Gray out all fields except `readable` if the admin is not the owner of the property
+    #         readable = ['is_active', 'last_checked']
 
-            # Get only actual model fields (exclude related fields like ManyToOneRel)
-            all_fields = [
-                field.name for field in self.model._meta.get_fields() if not field.is_relation]
+    #         # Get only actual model fields (exclude related fields like ManyToOneRel)
+    #         all_fields = [
+    #             field.name for field in self.model._meta.get_fields() if not field.is_relation]
 
-            # Add all fields except the readable ones to readonly_fields
-            readonly_fields.update(
-                field for field in all_fields if field not in readable)
+    #         # Add all fields except the readable ones to readonly_fields
+    #         readonly_fields.update(
+    #             field for field in all_fields if field not in readable)
 
-        return sorted(readonly_fields)
-
-
-@admin.register(models.HomeProperty)
-class HomeProperty(PropertyAdminProxy, nested_admin.NestedModelAdmin):
-    inlines = [HomePropertyBedroomInline, PropertyImageInline]
+    #     return sorted(readonly_fields)
 
 
-@admin.register(models.ApartmentProperty)
-class ApartmentProperty(PropertyAdminProxy, nested_admin.NestedModelAdmin):
+@admin.register(models.CommercialProperty)
+class CommercialProperty(PropertyAdminProxy, nested_admin.NestedModelAdmin):
+    inlines = [CommercialPropertyRoomInline, PropertyImageInline]
+
+
+@admin.register(models.ShortletProperty)
+class ShortletProperty(PropertyAdminProxy, nested_admin.NestedModelAdmin):
     inlines = [PropertyImageInline]
 
 

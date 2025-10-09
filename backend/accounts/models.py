@@ -9,6 +9,8 @@ import string
 from django.conf import settings
 import os
 
+from utilities import idx
+
 
 class UserManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
@@ -43,12 +45,19 @@ class User(AbstractUser):
     """
     User model class
     """
-    id = models.UUIDField(_("ID"), primary_key=True,
-                          default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        _("ID"),
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_user_id,
+        editable=False
+    )
     username = None
     email = models.EmailField(_("email address"), unique=True)
-    email_verified = models.BooleanField(_("email verified"), default=False, help_text=_("Designates whether the email has been verified."))
-    firebase_uid = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    email_verified = models.BooleanField(_("email verified"), default=False, help_text=_(
+        "Designates whether the email has been verified."))
+    firebase_uid = models.CharField(
+        max_length=255, unique=True, null=True, blank=True)
 
     objects = UserManager()
 
@@ -69,19 +78,19 @@ class User(AbstractUser):
         except User.phone_number.RelatedObjectDoesNotExist:
             return False
 
-    def is_stakeholder(self):
+    def is_host(self):
         try:
-            return self.stakeholder_account is not None
-        except User.stakeholder_account.RelatedObjectDoesNotExist:
+            return self.host_account is not None
+        except User.host_account.RelatedObjectDoesNotExist:
             return False
-    
-    def is_stakeholder_verified(self):
+
+    def is_host_verified(self):
         """
-        Check if the user is a verified stakeholder.
+        Check if the user is a verified host.
         """
         try:
-            return self.stakeholder_account.is_verified
-        except User.stakeholder_account.RelatedObjectDoesNotExist:
+            return self.host_account.is_verified
+        except User.host_account.RelatedObjectDoesNotExist:
             return False
 
 
@@ -94,17 +103,24 @@ class TimeStampedBaseModel(models.Model):
 
 
 class OTPRequest(TimeStampedBaseModel):
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_otp_id,
+        editable=False
+    )
     ref = models.TextField()
     # Hashed random token for device identity
     device_identity = models.CharField(max_length=255)
     otp = models.CharField(max_length=6)
-    is_verified = models.BooleanField(default=False, help_text=_("Designates whether the OTP has been verified."))
+    is_verified = models.BooleanField(default=False, help_text=_(
+        "Designates whether the OTP has been verified."))
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = _("OTP Request")
         verbose_name_plural = _("OTP Requests")
-    
+
     def __str__(self):
         return f"{self.ref} - {self.otp}"
 
@@ -155,8 +171,12 @@ class PhoneNumber(TimeStampedBaseModel):
     """
     PhoneNumber model class
     """
-    # id = models.UUIDField(_("ID"), primary_key=True,
-    #                       default=uuid.uuid4, editable=False)
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_phone_number_id,
+        editable=False
+    )
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="phone_number")
     mobile = models.CharField(max_length=15, unique=True)
@@ -166,25 +186,34 @@ class PhoneNumber(TimeStampedBaseModel):
         verbose_name = _("Phone Number")
         verbose_name_plural = _("Phone Numbers")
 
+
 def upload_identity_image(instance, filename: str):
     # Use the user's ID and the original filename to create a unique path
     root, ext = os.path.splitext(filename)
-    # support only 1 upload/stakeholders
+    # support only 1 upload/hosts
     return f"identities/{instance.user.email}.{ext}"
 
-def upload_stakeholder_image(instance, filename: str):
+
+def upload_host_image(instance, filename: str):
     """
     Custom handler for the upload_to parameter of the ImageField.
     """
     # Use the user's ID and the original filename to create a unique path
     root, ext = os.path.splitext(filename)
-    return f"stakeholders/{instance.user.email}.{ext}"
+    return f"hosts/{instance.user.email}.{ext}"
 
 
-class StakeholderAccount(TimeStampedBaseModel):
+class HostAccount(TimeStampedBaseModel):
+    id = models.CharField(
+        primary_key=True,
+        max_length=255,
+        default=idx.generate_host_id,
+        editable=False
+    )
     user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="stakeholder_account")
-    is_verified = models.BooleanField(default=False, help_text=_("Designates whether the stakeholder account has been verified."))
+        User, on_delete=models.CASCADE, related_name="host_account")
+    is_verified = models.BooleanField(default=False, help_text=_(
+        "Designates whether the host account has been verified."))
     IDENTITY_CHOICES = (
         ('bvn', 'BVN'),
         ('nin', 'NIN'),
@@ -197,9 +226,9 @@ class StakeholderAccount(TimeStampedBaseModel):
         upload_to=upload_identity_image,
         max_length=255
     )
-    stakeholder_photo = models.ImageField(
-        _("Stakeholder Photo"),
-        upload_to=upload_stakeholder_image,
+    host_photo = models.ImageField(
+        _("Host Photo"),
+        upload_to=upload_host_image,
         max_length=255,
     )
     identity_number = models.CharField(
@@ -208,34 +237,7 @@ class StakeholderAccount(TimeStampedBaseModel):
 
     def __str__(self):
         return f"{self.user.email} - ({'Is verified' if self.is_verified else 'Not verified'})"
-
-
-
-
-# class GovIssuedIdentity(TimeStampedBaseModel):
-#     IDENTITY_CHOICES = (
-#         ('bvn', 'BVN'),
-#         ('nin', 'NIN'),
-#         ('national_passport', 'National Passport')
-#     )
-#     type = models.CharField(
-#         _("Identity Type"), max_length=50, choices=IDENTITY_CHOICES)
-#     image = models.ImageField(
-#         _("Identity Shot"),
-#         upload_to=upload_identity_image,
-#         max_length=255
-#     )
-#     stakeholder_photo = models.ImageField(
-#         _("Stakeholder Photo"),
-#         upload_to=upload_stakeholder_image,
-#         max_length=255,
-#     )
-#     identity_number = models.CharField(
-#         _("Identity Number"), max_length=100, unique=True, help_text=_("Unique number for the identity.")
-#     )
-#     stakeholder = models.OneToOneField(
-#         StakeholderAccount, on_delete=models.CASCADE, related_name="identity")
     
-#     class Meta:
-#         verbose_name = _("Gov Issued Identity")
-#         verbose_name_plural = _("Gov Issued Identities")
+    class Meta:
+        verbose_name = _("Host Account")
+        verbose_name_plural = _("Host Accounts")

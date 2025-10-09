@@ -13,8 +13,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from django.contrib.auth import get_user_model
-from .models import OTPRequest, StakeholderAccount
-from .serializers import BecomeAStakeholderSerializer, PhoneNumberSerializer, ResetPasswordWithTokenSerializer, UserCreateSerializer
+from .models import OTPRequest, HostAccount
+from .serializers import BecomeAHostSerializer, PhoneNumberSerializer, ResetPasswordWithTokenSerializer, UserCreateSerializer
 from .serializers import UserSerializer, UserMeSerializer, ChangeAccountPasswordSerializer, VerifyEmailSerializer
 from .serializers import SendOTPSerializer, VerifyOTPSerializer, ResetPasswordSerializer
 import logging
@@ -100,10 +100,10 @@ class UserViewSet(viewsets.mixins.ListModelMixin,
             status.HTTP_400_BAD_REQUEST: None,
         }
     ),
-    become_stakeholder=extend_schema(
-        summary="Become Stakeholder",
-        description="Become a stakeholder by providing identity details.",
-        request=BecomeAStakeholderSerializer,
+    become_host=extend_schema(
+        summary="Become Host",
+        description="Become a host by providing identity details.",
+        request=BecomeAHostSerializer,
         responses={
             status.HTTP_201_CREATED: None,
             status.HTTP_400_BAD_REQUEST: None,
@@ -124,8 +124,8 @@ class UserMeViewSet(viewsets.GenericViewSet):
             return UserMeSerializer
         elif self.action == 'add_phone_number':
             return PhoneNumberSerializer
-        elif self.action == 'become_stakeholder':
-            return BecomeAStakeholderSerializer
+        elif self.action == 'become_host':
+            return BecomeAHostSerializer
         elif self.action == 'change_password':
             return ChangeAccountPasswordSerializer
         return UserMeSerializer
@@ -189,20 +189,20 @@ class UserMeViewSet(viewsets.GenericViewSet):
             return Response(PhoneNumberSerializer(user.phone_number).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    @action(methods=['POST'], detail=False, url_path='become-stakeholder', )
-    def become_stakeholder(self, request: Request, *args, **kwargs):
+    @action(methods=['POST'], detail=False, url_path='become-host', )
+    def become_host(self, request: Request, *args, **kwargs):
         """
-        Become a stakeholder by providing identity details.
+        Become a host by providing identity details.
         """
         try:
             user = request.user
-            serializer = BecomeAStakeholderSerializer(data=request.data)
+            serializer = BecomeAHostSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save(user=user)
-            return Response({'detail': 'Stakeholder account created successfully'
+            return Response({'detail': 'Host account created successfully'
                          }, status=status.HTTP_201_CREATED)
-        except User.stakeholder_account.RelatedObjectDoesNotExist:
-            return Response({'detail': 'Stakeholder account already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        except User.host_account.RelatedObjectDoesNotExist:
+            return Response({'detail': 'Host account already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
