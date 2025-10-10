@@ -38,4 +38,4 @@ http:
       loadBalancer:
         servers:
           - url: http://backend:8000
-        passHostHeader: false
+        passHostHeader: true
