@@ -35,6 +35,10 @@ dev-prune:
 	@echo "Cleaning up unused development containers, networks, images, and volumes"
 	docker system prune -f && docker volume prune -f
 
+dev-prune-all:
+	@echo "Cleaning up all unused containers, networks, images, and volumes"
+	docker system prune -a -f && docker volume prune -f
+
 # Staging Targets
 staging-start:
 	@echo "Starting staging containers"
@@ -71,6 +75,10 @@ staging-ps:
 staging-prune:
 	@echo "Cleaning up unused staging containers, networks, images, and volumes"
 	docker system prune -f && docker volume prune -f
+
+staging-prune-all:
+	@echo "Cleaning up all unused containers, networks, images, and volumes"
+	docker system prune -a -f && docker volume prune -f
 
 # Production Targets
 prod-start:

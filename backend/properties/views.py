@@ -38,7 +38,7 @@ class PropertyViewSet(
         Returns a queryset of filtered properties.
         """
         return models.Property.objects.filter(
-            Q(banned_properties__isnull=True) &
+            Q(banned__isnull=True) &
             Q(is_active=True) &
             Q(is_deleted=False)
         )
@@ -52,7 +52,7 @@ class PropertyViewSet(
         property = self.get_object()
         # Review this filter logic to ensure it meets your requirements
         similar_properties = models.Property.objects.filter(
-            Q(banned_properties__isnull=True) &
+            Q(banned__isnull=True) &
             Q(is_active=True) &
             Q(is_deleted=False) &
             ~Q(id=property.id)
@@ -84,7 +84,7 @@ class BookmarkedPropertyViewSet(
         """Returns a queryset of properties bookmarked by the authenticated user."""
         return models.BookmarkedProperty.objects.filter(
             user=self.request.user,
-            property__banned_properties__isnull=True,
+            property__banned__isnull=True,
             property__is_active=True,
             property__is_deleted=False
         )
@@ -650,7 +650,7 @@ class InterestedPropertyViewSet(
         """Returns a queryset of properties the authenticated user is interested in."""
         return models.InterestedProperty.objects.filter(
             user=self.request.user,
-            property__banned_properties__isnull=True,
+            property__banned__isnull=True,
             property__is_active=True,
             property__is_deleted=False
         )

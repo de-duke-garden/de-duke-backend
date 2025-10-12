@@ -33,6 +33,10 @@ def generate_property_image_id():
     '''Generate a unique Property Image ID'''
     return "pim_" + uuid.uuid4().hex
 
+def generate_property_media_id():
+    '''Generate a unique Property Media ID'''
+    return "pmd_" + uuid.uuid4().hex
+
 def generate_property_room_id():
     '''Generate a unique Property Room ID'''
     return "pro_" + uuid.uuid4().hex

@@ -36,8 +36,30 @@ class CommercialPropertyListedBySerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='user.get_full_name', read_only=True)
     class Meta:
         model = HostAccount
-        fields = ['id', 'full_name']
-        read_only_fields = ['id', 'full_name']
+        fields = ['id', 'full_name', 'is_verified', 'host_photo', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'full_name', 'is_verified', 'created_at', 'updated_at']
+
+
+class VerifiedPropertySerializer(serializers.ModelSerializer):
+    """
+    Serializer for VerifiedProperty model.
+    It includes fields for the verification details.
+    """
+    class Meta:
+        model = models.VerifiedProperty
+        fields = ['id', 'verification_phase', 'notes', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class BannedPropertySerializer(serializers.ModelSerializer):
+    """
+    Serializer for BannedProperty model.
+    It includes fields for the ban details.
+    """
+    class Meta:
+        model = models.BannedProperty
+        fields = ['id', 'reason', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 class CommercialPropertySerializer(serializers.ModelSerializer):
@@ -46,6 +68,9 @@ class CommercialPropertySerializer(serializers.ModelSerializer):
     It includes fields for the property and its images.
     """
     is_verified = serializers.BooleanField(read_only=True)
+    verified = VerifiedPropertySerializer(read_only=True)
+    is_banned = serializers.BooleanField(read_only=True)
+    banned = BannedPropertySerializer(read_only=True)
     rooms = CommercialPropertyRoomSerializer(many=True, read_only=True)
     images = PropertyImageSerializer(many=True, required=False, allow_null=True, read_only=True)
     listed_by = CommercialPropertyListedBySerializer(read_only=True)
@@ -54,6 +79,9 @@ class CommercialPropertySerializer(serializers.ModelSerializer):
     is_bookmarked = serializers.SerializerMethodField()
     title = serializers.CharField(read_only=True)
     subtitle = serializers.CharField(read_only=True)
+    tag = serializers.CharField(read_only=True)
+    features = serializers.CharField(read_only=True)
+    amenities = serializers.CharField(read_only=True)
     primary_image = serializers.ImageField(read_only=True)
     image__1__is_primary = serializers.BooleanField(write_only=True, required=False)
     image__1__image = serializers.ImageField(write_only=True, required=False, allow_null=True)
@@ -99,11 +127,17 @@ class ShortletPropertySerializer(serializers.ModelSerializer):
     It includes fields for the property and its images.
     """
     is_verified = serializers.BooleanField(read_only=True)
+    verified = VerifiedPropertySerializer(read_only=True)
+    is_banned = serializers.BooleanField(read_only=True)
+    banned = BannedPropertySerializer(read_only=True)
     images = PropertyImageSerializer(many=True, required=False, allow_null=True, read_only=True)
     listed_by = CommercialPropertyListedBySerializer(read_only=True)
     is_bookmarked = serializers.SerializerMethodField(read_only=True)
     title = serializers.CharField(read_only=True)
     subtitle = serializers.CharField(read_only=True)
+    tag = serializers.CharField(read_only=True)
+    features = serializers.CharField(read_only=True)
+    amenities = serializers.CharField(read_only=True)
     primary_image = serializers.ImageField(read_only=True)
     image__1__is_primary = serializers.BooleanField(write_only=True, required=False)
     image__1__image = serializers.ImageField(write_only=True, required=False)
@@ -149,11 +183,14 @@ class PropertySerializer(serializers.ModelSerializer):
     price = serializers.CharField(read_only=True)
     title = serializers.CharField(read_only=True)
     subtitle = serializers.CharField(read_only=True)
+    tag = serializers.CharField(read_only=True)
+    features = serializers.CharField(read_only=True)
+    amenities = serializers.CharField(read_only=True)
     primary_image = serializers.ImageField(read_only=True)
 
     class Meta:
         model = models.Property
-        fields = ['id', 'price', 'title', 'subtitle', 'primary_image',
+        fields = ['id', 'price', 'title', 'subtitle', 'tag', 'features', 'amenities', 'primary_image',
                   'property_type', 'commercialproperty', 'shortletproperty']
 
 
@@ -231,7 +268,7 @@ class InterestedPropertySerializer(serializers.ModelSerializer):
     Serializer for InterestedProperty model.
     It includes fields for the interested property and the user who expressed interest.
     """
-    property = MinimalPropertySerializer(read_only=True)
+    property = PropertySerializer(read_only=True)
     dialogs = InterestedPropertyDialogSerializer(read_only=True, many=True)
 
     class Meta:

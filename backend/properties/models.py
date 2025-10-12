@@ -8,7 +8,7 @@ import googlemaps
 from django.conf import settings
 import logging
 
-from utilities.helpers import property_image_upload_handler
+from utilities.helpers import property_image_upload_handler, property_media_upload_handler
 from utilities import idx
 
 
@@ -63,13 +63,14 @@ class Property(models.Model):
         """
         Check if the property is banned.
         """
-        return self.banned_properties.exists()
+        return hasattr(self, 'banned') and self.banned is not None
     
     def is_verified(self):
         """
         Check if the property is verified.
         """
-        return hasattr(self, 'verified') and self.verified is not None
+        # return hasattr(self, 'verified') and self.verified is not None
+        return hasattr(self, 'verified') and self.verified.is_verified()
     
     def is_verified_by(self):
         """
@@ -114,6 +115,48 @@ class Property(models.Model):
                 return shortlet.subtitle()
         return "Property"
     
+    def tag(self):
+        """
+        Generate a tag for the property based on its type.
+        """
+        if self.property_type == "commercial":
+            commercial = getattr(self, 'commercialproperty', None)
+            if commercial:
+                return commercial.tag()
+        elif self.property_type == "shortlet":
+            shortlet = getattr(self, 'shortletproperty', None)
+            if shortlet:
+                return shortlet.tag()
+        return "Property"
+    
+    def features(self):
+        """
+        Generate a features string for the property based on its type and key attributes.
+        """
+        if self.property_type == "commercial":
+            commercial = getattr(self, 'commercialproperty', None)
+            if commercial:
+                return commercial.features()
+        elif self.property_type == "shortlet":
+            shortlet = getattr(self, 'shortletproperty', None)
+            if shortlet:
+                return shortlet.features()
+        return ""
+    
+    def amenities(self):
+        """
+        Generate an amenities string for the property based on its type and key attributes.
+        """
+        if self.property_type == "commercial":
+            commercial = getattr(self, 'commercialproperty', None)
+            if commercial:
+                return commercial.amenities()
+        elif self.property_type == "shortlet":
+            shortlet = getattr(self, 'shortletproperty', None)
+            if shortlet:
+                return shortlet.amenities()
+        return ""
+    
     def primary_image(self):
         """
         Get the primary image of the property.
@@ -149,7 +192,28 @@ class PropertyImage(models.Model):
     def __str__(self):
         return self.property.__str__()
     
-    
+
+# class PropertyMedia(models.Model):
+#     """
+#     PropertyMedia model class
+#     """
+#     id = models.CharField(
+#         primary_key=True,
+#         max_length=255,
+#         default=idx.generate_property_media_id,
+#         editable=False
+#     )
+#     image = models.FileField(upload_to=property_media_upload_handler)
+#     property = models.ForeignKey(Property, related_name="media", on_delete=models.CASCADE)
+#     is_primary = models.BooleanField(default=False)
+
+#     class Meta:
+#         verbose_name = "Property Media"
+#         verbose_name_plural = "Property Media"
+#         ordering = ["-property__created_at"]
+
+#     def __str__(self):
+#         return self.property.__str__()
 
 
 class CommercialProperty(Property):
@@ -162,14 +226,9 @@ class CommercialProperty(Property):
     ]
     
     COMMERCIAL_TYPE_CHOICES = [
-        ('Single Family', _('Single Family')),
-        ('Multi Family', _('Multi Family')),
-        ('Townhouse', _('Townhouse')),
-        ('Mobile Home', _('Mobile Home')),
-        ('Manufactured Home', _('Manufactured Home')),
-        ('Modular Home', _('Modular Home')),
-        ('Vacation Home', _('Vacation Home')),
-        ('Farm', _('Farm')),
+        ('Office', _('Office')),
+        ('Shop', _('Shop')),
+        ('Home', _('Home')),
         ('land', _('Land')),
     ]
 
@@ -183,38 +242,13 @@ class CommercialProperty(Property):
     ARCHITECTURAL_STYLE_CHOICES = [
         ('Modern', _('Modern')),
         ('Traditional', _('Traditional')),
-        ('Contemporary', _('Contemporary')),
-        ('Colonial', _('Colonial')),
-        ('Craftsman', _('Craftsman')),
-        ('Ranch', _('Ranch')),
-        ('Victorian', _('Victorian')),
-        ('Farmhouse', _('Farmhouse')),
-        ('Cottage', _('Cottage')),
-        ('Mediterranean', _('Mediterranean')),
-        ('Tudor', _('Tudor')),
-        ('Art Deco', _('Art Deco')),
-        ('Mid-Century Modern', _('Mid-Century Modern')),
         ('Industrial', _('Industrial')),
-        ('Beach', _('Beach')),
-        ('Mountain', _('Mountain')),
-        ('Lake', _('Lake')),
-        ('Desert', _('Desert')),
     ]
 
     PROPERTY_CONDITION_CHOICES = [
         ('New', _('New')),
-        ('Like New', _('Like New')),
-        ('Excellent', _('Excellent')),
-        ('Good', _('Good')),
-        ('Fair', _('Fair')),
-        ('Poor', _('Poor')),
-        ('Needs Work', _('Needs Work')),
         ('Under Renovation', _('Under Renovation')),
         ('Under Construction', _('Under Construction')),
-        ('Vacant', _('Vacant')),
-        ('Occupied', _('Occupied')),
-        ('Foreclosure', _('Foreclosure')),
-        ('Short Sale', _('Short Sale')),
         ('Bank Owned', _('Bank Owned')),
     ]
 
@@ -281,21 +315,85 @@ class CommercialProperty(Property):
     
     def subtitle(self):
         subtitle = ""
-        if self.commercial_type:
-            subtitle += f"{self.commercial_type} | "
-        if self.architectural_style:
-            subtitle += f"{self.architectural_style} | "
-        if self.property_condition:
-            subtitle += f"{self.property_condition} | "
-        if self.total_bathrooms:
-            subtitle += f"{self.total_bathrooms} Bath | "
-        if self.total_rooms():
-            subtitle += f"{self.total_rooms()} Rooms | "
+        # if self.commercial_type:
+        #     subtitle += f"{self.commercial_type} | "
+        # if self.architectural_style:
+        #     subtitle += f"{self.architectural_style} | "
+        # if self.property_condition:
+        #     subtitle += f"{self.property_condition} | "
+        # if self.total_bathrooms:
+        #     subtitle += f"{self.total_bathrooms} Bath | "
+        # if self.total_rooms():
+        #     subtitle += f"{self.total_rooms()} Rooms | "
+        # if self.listing_type == "Sale":
+        #     subtitle += f"For Sale"
+        # elif self.listing_type == "Lease":
+        #     subtitle += f"{self.possession_period_days} days possession period"
         if self.listing_type == "Sale":
-            subtitle += f"For Sale"
+            subtitle = f"{self.commercial_type} Available for Sale"
         elif self.listing_type == "Lease":
-            subtitle += f"{self.possession_period_days} days possession period"
+            subtitle = f"{self.commercial_type} Available for {self.possession_period_days}-Days Lease"
         return subtitle
+
+    def tag(self):
+        return self.commercial_type if self.commercial_type else "Commercial"
+    
+    def features(self):
+        features = []
+        features.append(self.listing_type)
+        if self.listing_type == "Lease" and self.possession_period_days:
+            features.append(f"{self.possession_period_days} Days")
+        if self.total_bathrooms:
+            features.append(f"{self.total_bathrooms} Bath")
+        if self.total_rooms():
+            features.append(f"{self.total_rooms()} Rooms")
+        if self.architectural_style:
+            features.append(self.architectural_style)
+        if self.property_condition:
+            features.append(self.property_condition)
+        if self.total_structure_area:
+            features.append(f"{self.total_structure_area} sqft Structure Area")
+        if self.total_interior_livable_area:
+            features.append(f"{self.total_interior_livable_area} sqft Livable Area")
+        if self.finished_area_above_ground:
+            features.append(f"{self.finished_area_above_ground} sqft Above Ground")
+        if self.finished_area_below_ground:
+            features.append(f"{self.finished_area_below_ground} sqft Below Ground")
+        if self.finished_area():
+            features.append(f"{self.finished_area()} sqft Finished Area")
+        if self.total_parking_spaces:
+            features.append(f"{self.total_parking_spaces} Parking Spaces")
+        if self.parking_feature:
+            features.append(f"{self.parking_feature} Parking")
+        if self.garage_spaces:
+            features.append(f"{self.garage_spaces} Garage Spaces")
+        if self.year_built:
+            features.append(f"Built in {self.year_built}")
+        
+        return " | ".join(features)
+    
+    def amenities(self):
+        amenities = []
+        if self.has_basement:
+            amenities.append("Basement")
+        if self.has_fireplace:
+            amenities.append("Fireplace")
+        if self.has_fitness_center:
+            amenities.append("Fitness Center")
+        if self.has_game_room:
+            amenities.append("Game Room")
+        if self.has_bicycle_storage:
+            amenities.append("Bicycle Storage")
+        if self.has_swimming_pool:
+            amenities.append("Swimming Pool")
+        if self.allow_small_dog:
+            amenities.append("Small Dog Allowed")
+        if self.allow_large_dog:
+            amenities.append("Large Dog Allowed")
+        if self.allow_cat:
+            amenities.append("Cat Allowed")
+        
+        return " | ".join(amenities)
     
     def save(self, *args, **kwargs):
         """
@@ -353,8 +451,6 @@ class ShortletProperty(Property):
         ('1 Bedroom', '1 Bedroom'),
         ('2 Bedroom', '2 Bedroom'),
         ('3 Bedroom', '3 Bedroom'),
-        ('Duplex', 'Duplex'),
-        ('Triplex', 'Triplex'),
     ]
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -380,20 +476,48 @@ class ShortletProperty(Property):
 
     def subtitle(self):
         subtitle = ""
-        if self.shortlet_type:
-            subtitle += f"{self.shortlet_type} | "
-        if self.has_dishwasher:
-            subtitle += f"Dishwasher | "
-        if self.has_washer:
-            subtitle += f"Washer | "
-        if self.has_dryer:
-            subtitle += f"Dryer | "
-        if self.has_oven:
-            subtitle += f"Oven | "
-        if self.has_refrigerator:
-            subtitle += f"Refrigerator | "
-        subtitle += f"{self.possession_period_days} days possession period"
+        # if self.shortlet_type:
+        #     subtitle += f"{self.shortlet_type} | "
+        # if self.has_dishwasher:
+        #     subtitle += f"Dishwasher | "
+        # if self.has_washer:
+        #     subtitle += f"Washer | "
+        # if self.has_dryer:
+        #     subtitle += f"Dryer | "
+        # if self.has_oven:
+        #     subtitle += f"Oven | "
+        # if self.has_refrigerator:
+        #     subtitle += f"Refrigerator | "
+        # subtitle += f"{self.possession_period_days} days possession period"
+        subtitle = f"{self.shortlet_type} Available for {self.possession_period_days}-Days Rent"
         return subtitle
+    
+    def tag(self):
+        return self.shortlet_type if self.shortlet_type else "Shortlet"
+    
+    def features(self):
+        features = []
+        features.append("Rent")
+        features.append(f"{self.possession_period_days} Days")
+        if self.total_bathrooms:
+            features.append(f"{self.total_bathrooms} Bath")
+        
+        return " | ".join(features)
+    
+    def amenities(self):
+        amenities = []
+        if self.has_dishwasher:
+            amenities.append("Dishwasher")
+        if self.has_washer:
+            amenities.append("Washer")
+        if self.has_dryer:
+            amenities.append("Dryer")
+        if self.has_oven:
+            amenities.append("Oven")
+        if self.has_refrigerator:
+            amenities.append("Refrigerator")
+        
+        return " | ".join(amenities)
     
     def save(self, *args, **kwargs):
         """
@@ -414,10 +538,11 @@ class BannedProperty(models.Model):
         default=idx.generate_banned_property_id,
         editable=False
     )
-    property = models.ForeignKey(Property, related_name="banned_properties", on_delete=models.CASCADE)
+    property = models.OneToOneField(Property, related_name="banned", on_delete=models.CASCADE)
     banned_by = models.ForeignKey(User, related_name="banned_properties", on_delete=models.CASCADE)
     reason = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Banned Property"
@@ -432,6 +557,13 @@ class VerifiedProperty(models.Model):
     """
     VerifiedProperty model class
     """
+    VERIFICATION_PHASE_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Phase 1', 'Phase 1'),
+        ('Phase 2', 'Phase 2'),
+        ('Verified', 'Verified'),
+        ('Rejected', 'Rejected'),
+    ]
     id = models.CharField(
         primary_key=True,
         max_length=255,
@@ -440,7 +572,10 @@ class VerifiedProperty(models.Model):
     )
     property = models.OneToOneField(Property, related_name="verified", on_delete=models.CASCADE)
     verified_by = models.ForeignKey(User, related_name="verified_properties", on_delete=models.CASCADE)
+    verification_phase = models.CharField(max_length=50, choices=VERIFICATION_PHASE_CHOICES, default='Pending')
+    notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Verified Property"
@@ -449,6 +584,12 @@ class VerifiedProperty(models.Model):
 
     def __str__(self):
         return self.property.__str__()
+    
+    def is_verified(self):
+        """
+        Check if the property is fully verified.
+        """
+        return self.verification_phase == 'Verified'
     
 
 class BookmarkedProperty(models.Model):
