@@ -24,7 +24,9 @@ DATABASES = {
 # ]
 CORS_ALLOWED_ORIGINS = [
     "http://de-duke.com",
+    "https://de-duke.com",
     "http://www.de-duke.com",
+    "https://www.de-duke.com",
     "http://ec2-13-42-130-253.eu-west-2.compute.amazonaws.com",
 ]
 
