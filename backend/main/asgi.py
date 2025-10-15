@@ -20,31 +20,31 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.dev')
 django_asgi_app = get_asgi_application()
 
 
-# application = ProtocolTypeRouter({
-#     "http": django_asgi_app,
-#     # "websocket": AllowedHostsOriginValidator(
-#     #     AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
-#     # ),
-#     "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
-# })
-
-
-class HeaderLoggingMiddleware:
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope.get("type") == "websocket":
-            headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
-            print("ASGI websocket headers:", headers)   # check Host / Origin here
-        return await self.app(scope, receive, send)
-
-inner = ProtocolTypeRouter({
+application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": AllowedHostsOriginValidator(
-        AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
-    ),
+    # "websocket": AllowedHostsOriginValidator(
+    #     AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+    # ),
+    "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
 })
 
-# add header logging around the whole application (optional)
-application = HeaderLoggingMiddleware(inner)
+
+# class HeaderLoggingMiddleware:
+#     def __init__(self, app):
+#         self.app = app
+
+#     async def __call__(self, scope, receive, send):
+#         if scope.get("type") == "websocket":
+#             headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
+#             print("ASGI websocket headers:", headers)   # check Host / Origin here
+#         return await self.app(scope, receive, send)
+
+# inner = ProtocolTypeRouter({
+#     "http": django_asgi_app,
+#     "websocket": AllowedHostsOriginValidator(
+#         AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+#     ),
+# })
+
+# # add header logging around the whole application (optional)
+# application = HeaderLoggingMiddleware(inner)
