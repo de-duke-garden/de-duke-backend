@@ -41,10 +41,10 @@ class HeaderLoggingMiddleware:
 
 inner = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+    "websocket": AllowedHostsOriginValidator(
+        AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+    ),
 })
 
-# wrap with logging and the origin validator (production behaviour)
-application = HeaderLoggingMiddleware(
-    AllowedHostsOriginValidator(inner)
-)
+# add header logging around the whole application (optional)
+application = HeaderLoggingMiddleware(inner)
