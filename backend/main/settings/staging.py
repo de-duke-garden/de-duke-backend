@@ -30,6 +30,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://ec2-13-42-130-253.eu-west-2.compute.amazonaws.com",
 ]
 
+# Trusted origins for CSRF and WebSocket origin checks
+CSRF_TRUSTED_ORIGINS = [
+    "https://de-duke.com",
+    "https://www.de-duke.com",
+    "https://ec2-13-42-130-253.eu-west-2.compute.amazonaws.com",
+]
+
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 USE_X_FORWARDED_HOST = True
