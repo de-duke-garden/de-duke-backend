@@ -674,8 +674,19 @@ class InterestedPropertyViewSet(
     @action(methods=['get'], detail=False, url_path='websocket-url', url_name='websocket-url')
     def websocket_url(self, request):
         """Returns the WebSocket URL for interested properties interactions."""
-        ws_scheme = 'wss' if request.is_secure() else 'ws'
-        host = request.get_host()
+        # ws_scheme = 'wss' if request.is_secure() else 'ws'
+        # host = request.get_host()
+        # Prefer X-Forwarded-* headers (set by Traefik / reverse proxy) but fall back to Django values
+        forwarded_proto = request.headers.get('x-forwarded-proto') or request.META.get('HTTP_X_FORWARDED_PROTO')
+        proto = (forwarded_proto.split(',')[0].strip() if forwarded_proto else
+                 ('https' if request.is_secure() else 'http'))
+        ws_scheme = 'wss' if proto == 'https' else 'ws'
+
+        forwarded_host = request.headers.get('x-forwarded-host') or request.META.get('HTTP_X_FORWARDED_HOST')
+        host = (forwarded_host.split(',')[0].strip() if forwarded_host else request.get_host())
+        # Some proxies can wrongly forward port 0; strip it if present
+        if host.endswith(':0'):
+            host = host.rsplit(':', 1)[0]
         
         # Create and encrypt the payload
         payload = {
