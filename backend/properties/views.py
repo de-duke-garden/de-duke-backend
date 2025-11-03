@@ -148,8 +148,7 @@ class HostShortletPropertyViewSet(
     def create(self, request: Request, *args, **kwargs):
         images = {} # files that starts with 'image__' in data list
         # Create a mutable copy of request.data
-        mutable_data = request.data.copy()
-        print("Request data:", mutable_data)
+        mutable_data = {}
         for key, value in request.data.items():
             # if key.startswith('image__'):
             #     print(f"Processing image: {key}", value, type(value))
@@ -171,12 +170,11 @@ class HostShortletPropertyViewSet(
                     elif value == 'false':
                         val = False
                     images[lookup][field] = val
-                mutable_data.pop(key, None)
+            else:
+                mutable_data[key] = value
         # Save the property first
-        print("Mutable data for property creation:", mutable_data)
         serializer = self.get_serializer(data=mutable_data)
         serializer.is_valid(raise_exception=True)
-        print("Validated data:", serializer.validated_data)
         # Pass the listed_by field from the request user's host account
         property_instance = serializer.save(listed_by=self.request.user.host_account)
         print("Created property:", property_instance)
@@ -206,7 +204,7 @@ class HostShortletPropertyViewSet(
     def update(self, request: Request, *args, **kwargs):
         images = {}  # files that starts with 'image__' in data list
         # Create a mutable copy of request.data
-        mutable_data = request.data.copy()
+        mutable_data = {}
         for key, value in request.data.items():
             # if key.startswith('image__'):
             #     print(f"Processing image: {key}", value, type(value))
@@ -228,7 +226,8 @@ class HostShortletPropertyViewSet(
                     elif value == 'false':
                         val = False
                     images[lookup][field] = val
-                mutable_data.pop(key, None)
+            else:
+                mutable_data[key] = value
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data)
@@ -259,7 +258,7 @@ class HostShortletPropertyViewSet(
     def partial_update(self, request: Request, *args, **kwargs):
         images = {}  # files that starts with 'image__' in data list
         # Create a mutable copy of request.data
-        mutable_data = request.data.copy()
+        mutable_data = {}
         for key, value in request.data.items():
             # if key.startswith('image__'):
             #     print(f"Processing image: {key}", value, type(value))
@@ -281,7 +280,8 @@ class HostShortletPropertyViewSet(
                     elif value == 'false':
                         val = False
                     images[lookup][field] = val
-                mutable_data.pop(key, None)
+            else:
+                mutable_data[key] = value
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data, partial=True)
@@ -344,7 +344,7 @@ class HostCommercialPropertyViewSet(
         images = {} # files that starts with 'image__' in data list
         rooms = {}
         # Create a mutable copy of request.data
-        mutable_data = request.data.copy()
+        mutable_data = {}
         for key, value in request.data.items():
             if key.startswith('image__'):
                 print(f"Processing image: {key}", value, type(value))
@@ -359,14 +359,14 @@ class HostCommercialPropertyViewSet(
                     elif value == 'false':
                         val = False
                     images[lookup][field] = val
-                mutable_data.pop(key, None)
             elif key.startswith('room__'):
                 if value and value != 'null':
                     _, lookup, field = key.split('__')
                     if lookup not in rooms:
                         rooms[lookup] = {}
                     rooms[lookup][field] = value
-                mutable_data.pop(key, None)  # Remove the room data from request data
+            else:
+                mutable_data[key] = value
         # Save the property first
         print("Mutable data for property creation:", mutable_data)
         serializer = self.get_serializer(data=mutable_data)
@@ -399,7 +399,7 @@ class HostCommercialPropertyViewSet(
         images = {}  # files that starts with 'image__' in data list
         rooms = {}
         # Create a mutable copy of request.data
-        mutable_data = request.data.copy()
+        mutable_data = {}
         for key, value in request.data.items():
             # if key.startswith('image__'):
             #     print(f"Processing image: {key}", value, type(value))
@@ -421,14 +421,14 @@ class HostCommercialPropertyViewSet(
                     elif value == 'false':
                         val = False
                     images[lookup][field] = val
-                mutable_data.pop(key, None)
             elif key.startswith('room__'):
                 if value and value != 'null':
                     _, lookup, field = key.split('__')
                     if lookup not in rooms:
                         rooms[lookup] = {}
                     rooms[lookup][field] = value
-                mutable_data.pop(key, None)  # Remove the room data from request data
+            else:
+                mutable_data[key] = value
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data)
@@ -477,7 +477,7 @@ class HostCommercialPropertyViewSet(
         images = {}  # files that starts with 'image__' in data list
         rooms = {}
         # Create a mutable copy of request.data
-        mutable_data = request.data.copy()
+        mutable_data = {}
         print("Request data:", mutable_data)
         for key, value in request.data.items():
             # if key.startswith('image__'):
@@ -500,14 +500,14 @@ class HostCommercialPropertyViewSet(
                     elif value == 'false':
                         val = False
                     images[lookup][field] = val
-                mutable_data.pop(key, None)
             elif key.startswith('room__'):
                 if value and value != 'null':
                     _, lookup, field = key.split('__')
                     if lookup not in rooms:
                         rooms[lookup] = {}
                     rooms[lookup][field] = value
-                mutable_data.pop(key, None)  # Remove the room data from request data
+            else:
+                mutable_data[key] = value
         # Update the property first
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=mutable_data, partial=True)
